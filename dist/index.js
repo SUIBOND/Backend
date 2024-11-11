@@ -69,5 +69,5 @@ app.get('/get-object/:objectId', asyncHandler(function (req, res) { return __awa
     });
 }); }));
 app.listen(port, function () {
-    console.log("Server is running on http://localhost:".concat(port));
+    console.log("Server is running on http://0.0.0.0:".concat(port));
 });
