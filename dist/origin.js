@@ -49,6 +49,10 @@ app.get('/get-object/:objectId', asyncHandler((req, res) => __awaiter(void 0, vo
     if (!objectId) {
         return res.status(400).send("Object ID is required");
     }
+    // Use the connected wallet address here if needed
+    if (connectedWalletAddress) {
+        console.log(`Using connected wallet address: ${connectedWalletAddress}`);
+    }
     const result = yield (0, object_1.getObject)(objectId);
     if (!result) {
         return res.status(404).send("Object not found");
@@ -127,7 +131,8 @@ const filterFields = (obj, fieldsToRemove) => {
     }
     return filteredObj;
 };
-// /get-foundation-bounty-details/:foundationId 엔드포인트
+// digest, version, dataType, hasPublicTransfer 있는 버전
+// foundationID 파라미터 전달 시 foundation과 bounty 상세 정보를 가져오는 엔드포인트
 app.get('/get-foundation-bounty-details/:foundationId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { foundationId } = req.params;
     if (!foundationId) {
@@ -156,6 +161,7 @@ app.get('/get-foundation-bounty-details/:foundationId', asyncHandler((req, res) 
     const filteredResult = filterFields(finalResult, fieldsToRemove);
     res.json(filteredResult);
 })));
+// digest, version, dataType, hasPublicTransfer 있는 버전
 // // foundationId로 foundation과 bounty 상세 정보를 얻는 새로운 엔드포인트
 // app.get('/get-foundation-bounty-details/:foundationId', asyncHandler(async (req: Request, res: Response) => {
 //     const { foundationId } = req.params;
@@ -196,12 +202,57 @@ app.get('/get-foundation-bounty-details/:foundationId', asyncHandler((req, res) 
 //     };
 //     res.json(finalResult);
 // }));
+// New endpoint to get all bounty details based on platform ID
+app.get('/get-all-bounties/:platformId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _h, _j;
+    const { platformId } = req.params;
+    if (!platformId) {
+        return res.status(400).send("Platform ID is required");
+    }
+    // Step 1: Get platform details to retrieve foundation_ids
+    const platformResult = yield (0, object_1.getObject)(platformId);
+    if (!platformResult) {
+        return res.status(404).send("Platform not found");
+    }
+    const foundationIds = (_j = (_h = platformResult.content) === null || _h === void 0 ? void 0 : _h.fields) === null || _j === void 0 ? void 0 : _j.foundation_ids;
+    if (!foundationIds || foundationIds.length === 0) {
+        return res.status(404).send("No foundation IDs found in the platform object");
+    }
+    // Step 2: For each foundation ID, fetch the bounty table keys
+    const foundationDetailsPromises = foundationIds.map((foundationId) => __awaiter(void 0, void 0, void 0, function* () {
+        var _k, _l;
+        const foundationResult = yield (0, object_1.getObject)(foundationId);
+        if (foundationResult) {
+            return ((_l = (_k = foundationResult.content) === null || _k === void 0 ? void 0 : _k.fields) === null || _l === void 0 ? void 0 : _l.bounty_table_keys) || [];
+        }
+        return [];
+    }));
+    const allBountyTableKeys = yield Promise.all(foundationDetailsPromises);
+    // Flatten all bounty table keys into a single array
+    const bountyTableKeys = allBountyTableKeys.flat();
+    if (bountyTableKeys.length === 0) {
+        return res.status(404).send("No bounty table keys found in the foundation objects");
+    }
+    // Step 3: For each bounty table key, fetch the bounty details
+    const bountyDetailsPromises = bountyTableKeys.map((bountyKey) => __awaiter(void 0, void 0, void 0, function* () {
+        const bountyResult = yield (0, object_1.getObject)(bountyKey);
+        return bountyResult || null;
+    }));
+    const bountyDetails = yield Promise.all(bountyDetailsPromises);
+    // Filter out any null values (if any)
+    const validBountyDetails = bountyDetails.filter(Boolean);
+    if (validBountyDetails.length === 0) {
+        return res.status(404).send("No valid bounty details found");
+    }
+    // Return all the valid bounty details
+    res.json({ bountyDetails: validBountyDetails });
+})));
 // New endpoint to retrieve completed bounty details
 app.get('/get-completed-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _h, _j;
+    var _m, _o;
     const { objectId } = req.params;
     const result = yield (0, object_1.getObject)(objectId);
-    const completedIds = ((_j = (_h = result.content) === null || _h === void 0 ? void 0 : _h.fields) === null || _j === void 0 ? void 0 : _j.completed) || [];
+    const completedIds = ((_o = (_m = result.content) === null || _m === void 0 ? void 0 : _m.fields) === null || _o === void 0 ? void 0 : _o.completed) || [];
     const completedDetails = yield Promise.all(completedIds.map((completedId) => __awaiter(void 0, void 0, void 0, function* () {
         const data = yield (0, object_1.getObject)(completedId);
         return data;
@@ -210,10 +261,10 @@ app.get('/get-completed-bounty-details/:objectId', asyncHandler((req, res) => __
 })));
 // New endpoint to retrieve processing bounty details
 app.get('/get-processing-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _k, _l;
+    var _p, _q;
     const { objectId } = req.params;
     const result = yield (0, object_1.getObject)(objectId);
-    const processingIds = ((_l = (_k = result.content) === null || _k === void 0 ? void 0 : _k.fields) === null || _l === void 0 ? void 0 : _l.processing) || [];
+    const processingIds = ((_q = (_p = result.content) === null || _p === void 0 ? void 0 : _p.fields) === null || _q === void 0 ? void 0 : _q.processing) || [];
     const processingDetails = yield Promise.all(processingIds.map((processingId) => __awaiter(void 0, void 0, void 0, function* () {
         const data = yield (0, object_1.getObject)(processingId);
         return data;
@@ -222,10 +273,10 @@ app.get('/get-processing-bounty-details/:objectId', asyncHandler((req, res) => _
 })));
 // New endpoint to retrieve unconfirmed proposal bounty details
 app.get('/get-unconfirmed-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _m, _o;
+    var _r, _s;
     const { objectId } = req.params;
     const result = yield (0, object_1.getObject)(objectId);
-    const unconfirmedProposalIds = ((_o = (_m = result.content) === null || _m === void 0 ? void 0 : _m.fields) === null || _o === void 0 ? void 0 : _o.unconfirmedProposal) || [];
+    const unconfirmedProposalIds = ((_s = (_r = result.content) === null || _r === void 0 ? void 0 : _r.fields) === null || _s === void 0 ? void 0 : _s.unconfirmedProposal) || [];
     const unconfirmedProposalDetails = yield Promise.all(unconfirmedProposalIds.map((proposalId) => __awaiter(void 0, void 0, void 0, function* () {
         const data = yield (0, object_1.getObject)(proposalId);
         return data;

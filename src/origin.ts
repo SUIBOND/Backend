@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { getObject } from './object';
+import axios from 'axios';
+
 
 const app = express();
 const port = 4000;
@@ -25,6 +27,45 @@ app.post('/set-connected-wallet-address', asyncHandler(async (req: Request, res:
 
     console.log(`Connected wallet address: ${connectedWalletAddress}`);
     res.status(200).send({ message: "Wallet address set successfully" });
+}));
+
+app.get('/example/getownedobject', asyncHandler(async (req: Request, res: Response) => {
+    const walletAddress = req.query.address as string;
+    if (!walletAddress) {
+        res.status(400).json({ error: "Wallet address is required" });
+        return;
+    }
+
+    try {
+        const response = await axios.post('https://fullnode.testnet.sui.io:443', {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'suix_getOwnedObjects',
+            params: [
+                walletAddress,
+                {
+                    filter: {
+                        MatchAll: [
+                            { StructType: "0x2::coin::Coin<0x2::sui::SUI>" } // package::module::structure
+                            // 0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::foundation::Foundation
+                            // 0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::developer::Developer
+                        ]
+                    },
+                    options: {
+                        showType: true,
+                        showOwner: true,
+                        showPreviousTransaction: true
+                    }
+                },
+                null,
+                3 // Limit results to 3 items
+            ]
+        });
+
+        res.json(response.data.result);
+    } catch (error: any) {
+        res.status(500).json({ error: 'Error fetching owned objects', details: error.message });
+    }
 }));
 
 // Existing /get-object/:objectId endpoint
@@ -141,7 +182,7 @@ const filterFields = (obj: any, fieldsToRemove: string[]): any => {
 };
 
 // digest, version, dataType, hasPublicTransfer 있는 버전
-// foundationID 파라미터 전달 시 foundation과 bounty 상세 정보를 가져오는 새로운 엔드포인트
+// foundationID 파라미터 전달 시 foundation과 bounty 상세 정보를 가져오는 엔드포인트
 app.get('/get-foundation-bounty-details/:foundationId', asyncHandler(async (req: Request, res: Response) => {
     const { foundationId } = req.params;
 
@@ -243,6 +284,64 @@ app.get('/get-foundation-bounty-details/:foundationId', asyncHandler(async (req:
 
 //     res.json(finalResult);
 // }));
+
+// New endpoint to get all bounty details based on platform ID
+app.get('/get-all-bounties/:platformId', asyncHandler(async (req: Request, res: Response) => {
+    const { platformId } = req.params;
+
+    if (!platformId) {
+        return res.status(400).send("Platform ID is required");
+    }
+
+    // Step 1: Get platform details to retrieve foundation_ids
+    const platformResult = await getObject(platformId);
+
+    if (!platformResult) {
+        return res.status(404).send("Platform not found");
+    }
+
+    const foundationIds = platformResult.content?.fields?.foundation_ids;
+
+    if (!foundationIds || foundationIds.length === 0) {
+        return res.status(404).send("No foundation IDs found in the platform object");
+    }
+
+    // Step 2: For each foundation ID, fetch the bounty table keys
+    const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
+        const foundationResult = await getObject(foundationId);
+        if (foundationResult) {
+            return foundationResult.content?.fields?.bounty_table_keys || [];
+        }
+        return [];
+    });
+
+    const allBountyTableKeys = await Promise.all(foundationDetailsPromises);
+
+    // Flatten all bounty table keys into a single array
+    const bountyTableKeys = allBountyTableKeys.flat();
+
+    if (bountyTableKeys.length === 0) {
+        return res.status(404).send("No bounty table keys found in the foundation objects");
+    }
+
+    // Step 3: For each bounty table key, fetch the bounty details
+    const bountyDetailsPromises = bountyTableKeys.map(async (bountyKey: string) => {
+        const bountyResult = await getObject(bountyKey);
+        return bountyResult || null;
+    });
+
+    const bountyDetails = await Promise.all(bountyDetailsPromises);
+
+    // Filter out any null values (if any)
+    const validBountyDetails = bountyDetails.filter(Boolean);
+
+    if (validBountyDetails.length === 0) {
+        return res.status(404).send("No valid bounty details found");
+    }
+
+    // Return all the valid bounty details
+    res.json({ bountyDetails: validBountyDetails });
+}));
 
 // New endpoint to retrieve completed bounty details
 app.get('/get-completed-bounty-details/:objectId', asyncHandler(async (req: Request, res: Response) => {
