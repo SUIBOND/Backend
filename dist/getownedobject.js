@@ -36,7 +36,9 @@ app.get('/example/getownedobject', asyncHandler((req, res) => __awaiter(void 0, 
                 {
                     filter: {
                         MatchAll: [
-                            { StructType: "0x2::coin::Coin<0x2::sui::SUI>" }
+                            { StructType: "0x2::coin::Coin<0x2::sui::SUI>" } // package::module::structure
+                            // 0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::foundation::Foundation
+                            // 0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::developer::Developer
                         ]
                     },
                     options: {
