@@ -4,7 +4,7 @@ import {
     MultiGetObjectsParams,
 } from "@mysten/sui/client";
 
-const TESTNET_ENDPOINT = "https://fullnode.testnet.sui.io:443";
+const TESTNET_ENDPOINT = "https://rpc-testnet.suiscan.xyz:443";
 export const client = new SuiClient({ url: TESTNET_ENDPOINT });
 
 export const getObject = async (objectId: string): Promise<any> => {

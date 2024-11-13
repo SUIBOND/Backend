@@ -1,14 +1,19 @@
 {
   "compilerOptions": {
+    "target": "ES2015",
     "module": "commonjs",
-    "rootDir": "./src", // src 폴더를 루트 디렉토리로 설정
+    "rootDir": "./src",
     "outDir": "./dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "lib": [
+      "es2015",
+      "dom"
+    ]
   },
   "include": [
-    "src/**/*" // src 폴더 내부의 모든 파일을 포함
+    "src/**/*"
   ]
 }
