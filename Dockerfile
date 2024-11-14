@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 3000
 
 # 7. 애플리케이션 실행
-CMD ["npm", "start"]
+CMD ["node", "dist/apis.js"]
