@@ -43,6 +43,7 @@ export const parseDeveloperCap = (data: any): DeveloperCap => {
     };
 };
 
+// 필요 없으면 제거 예정 ------------------------------------------
 // parseBountyForEndpoint 함수 추가
 export const parseBountyForEndpoint = (bountyData: any): Bounty => {
     return {
@@ -103,6 +104,8 @@ const parseCoinForEndpoint = (coin: any): Coin<'SUI'> => {
         currency: 'SUI',
     };
 };
+// 필요 없으면 제거 예정 ------------------------------------------
+
 
 
 // 개별 Proposal ID 데이터를 파싱하는 헬퍼 함수

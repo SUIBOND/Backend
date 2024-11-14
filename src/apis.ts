@@ -264,6 +264,47 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 
+app.get('/bounties-full', asyncHandler(async (req: Request, res: Response) => {
+    try {
+        const platformId = config.platform_obj_id;
+        const platformObject = await getObject(platformId);
+
+        if (!platformObject) {
+            return res.status(404).json({ message: 'Platform object not found' });
+        }
+
+        const foundationIds = platformObject.content?.fields?.foundation_ids || [];
+        const foundationDetailsPromises = foundationIds.map((foundationId: string) => getObject(foundationId));
+        const foundationDetails = await Promise.all(foundationDetailsPromises);
+
+        // 각 foundation의 bounty_table_keys를 가져와 모든 bounty 객체를 포함하도록 설정
+        const bountyTableDetailsPromises = foundationDetails.flatMap((foundation: any) => {
+            return foundation?.content?.fields?.bounty_table_keys?.map((bountyKey: string) => getObject(bountyKey)) || [];
+        });
+
+        const bountyTableDetails = await Promise.all(bountyTableDetailsPromises);
+
+        // 모든 필드를 반환
+        const fullBountyDetails = bountyTableDetails.map((bounty: any) => ({
+            objectId: bounty.objectId,
+            ...bounty.content.fields // 모든 필드 포함
+        }));
+
+        res.status(200).json({
+            foundations: foundationDetails.map((foundation: any) => ({
+                objectId: foundation.objectId,
+                ...foundation.content.fields, // 모든 필드 포함
+                bounties: fullBountyDetails
+            }))
+        });
+
+    } catch (error) {
+        console.error("Error fetching full bounty details: ", error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+}));
+
+
 
 
 app.get('/object/:objectId', asyncHandler(async (req: Request, res: Response) => {
