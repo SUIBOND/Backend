@@ -2,10 +2,11 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { getObject, getOwnedObjects } from './object'; // getOwnedObjects import
 import axios from 'axios';
+import config from './config';
 
 const app = express();
 const port = 3000;
-const packageId = '0x7e86551436c07a7c548ab2ebc4007284d8bfca9b2f4e9445a9738f0d664d1f4a'; // Platform ID variable
+const packageId = config.package_id;
 
 app.use(express.json()); // Parse JSON request body
 
@@ -15,7 +16,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
     };
 
 // Refactored endpoint to check for FoundationCap or DeveloperCap, using a wallet address as a path parameter
-app.get('/validation/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
     const walletAddress = req.params.walletAddress;
 
     if (!walletAddress) {

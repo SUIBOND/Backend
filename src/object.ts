@@ -4,9 +4,9 @@ import {
     MultiGetObjectsParams,
 } from "@mysten/sui/client";
 import axios from 'axios';
+import config from "./config";
 
-const TESTNET_ENDPOINT = "https://rpc-testnet.suiscan.xyz:443";
-export const client = new SuiClient({ url: TESTNET_ENDPOINT });
+export const client = new SuiClient({ url: config.testnet_endpoint });
 
 export const getObject = async (objectId: string): Promise<any> => {
     if (!objectId) {
@@ -43,7 +43,7 @@ export const multiGetObjects = async (objectIds: string[]): Promise<any> => {
 // New getOwnedObjects function
 export const getOwnedObjects = async (walletAddress: string): Promise<any> => {
     try {
-        const response = await axios.post(TESTNET_ENDPOINT, {
+        const response = await axios.post(config.testnet_endpoint, {
             jsonrpc: '2.0',
             id: 1,
             method: 'suix_getOwnedObjects',
