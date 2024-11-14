@@ -25,8 +25,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const object_1 = require("./object");
+const axios_1 = __importDefault(require("axios"));
 const app = (0, express_1.default)();
 const port = 4000;
+const platformId = '0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986'; // 플랫폼 ID 변수화
+// 미들웨어 추가: 요청 본문 파싱
+app.use(express_1.default.json()); // 요청 본문이 JSON인 경우 파싱해줍니다.
 const asyncHandler = (fn) => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
 };
@@ -42,6 +46,105 @@ app.post('/set-connected-wallet-address', asyncHandler((req, res) => __awaiter(v
     connectedWalletAddress = walletAddress;
     console.log(`Connected wallet address: ${connectedWalletAddress}`);
     res.status(200).send({ message: "Wallet address set successfully" });
+})));
+// /check-foundation-or-developer API
+app.get('/check-foundation-or-developer', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const walletAddress = req.query.address;
+    if (!walletAddress) {
+        res.status(400).json({ error: "Wallet address is required" });
+        return;
+    }
+    try {
+        // External API call
+        const response = yield axios_1.default.post('https://fullnode.testnet.sui.io:443', {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'suix_getOwnedObjects',
+            params: [
+                walletAddress,
+                {
+                    filter: {
+                        MatchAll: [
+                            { StructType: "0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::foundation::Foundation" },
+                            { StructType: "0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::developer::Developer" }
+                        ]
+                    },
+                    options: {
+                        showType: true,
+                        showOwner: true,
+                        showPreviousTransaction: true
+                    }
+                },
+                null,
+                3
+            ]
+        });
+        // Response verification
+        const ownedObjects = ((_a = response.data.result) === null || _a === void 0 ? void 0 : _a.data) || [];
+        console.log("Owned objects response:", ownedObjects);
+        if (!Array.isArray(ownedObjects)) {
+            res.status(500).json({ error: "Invalid data format received from API" });
+            return;
+        }
+        // Logging each object type for debugging
+        ownedObjects.forEach((obj, index) => {
+            console.log(`Object ${index} type:`, obj.data.type);
+        });
+        // Check for Foundation or Developer object ownership
+        const hasFoundationObject = ownedObjects.some((obj) => { var _a; return ((_a = obj.data) === null || _a === void 0 ? void 0 : _a.type) === "0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::foundation::Foundation"; });
+        const hasDeveloperObject = ownedObjects.some((obj) => { var _a; return ((_a = obj.data) === null || _a === void 0 ? void 0 : _a.type) === "0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::developer::Developer"; });
+        if (hasFoundationObject) {
+            res.json({ result: 1 });
+        }
+        else if (hasDeveloperObject) {
+            res.json({ result: 0 });
+        }
+        else {
+            res.json({ result: null });
+        }
+    }
+    catch (error) {
+        console.error("Error fetching owned objects:", error);
+        res.status(500).json({ error: error.message || "Internal server error" });
+    }
+})));
+app.get('/getownedobject', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const walletAddress = req.query.address;
+    if (!walletAddress) {
+        res.status(400).json({ error: "Wallet address is required" });
+        return;
+    }
+    try {
+        const response = yield axios_1.default.post('https://rpc-testnet.suiscan.xyz:443', {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'suix_getOwnedObjects',
+            params: [
+                walletAddress,
+                {
+                    filter: {
+                        MatchAll: [
+                            { StructType: "0x2::coin::Coin<0x2::sui::SUI>" } // package::module::structure
+                            // 0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::foundation::Foundation
+                            // 0x75aa898bf3a52a8cba6e885a950a1a2a02a5ff9c4d3dba94c03084efcc201986::developer::Developer
+                        ]
+                    },
+                    options: {
+                        showType: true,
+                        showOwner: true,
+                        showPreviousTransaction: true
+                    }
+                },
+                null,
+                3 // Limit results to 3 items
+            ]
+        });
+        res.json(response.data.result);
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Error fetching owned objects', details: error.message });
+    }
 })));
 // Existing /get-object/:objectId endpoint
 app.get('/get-object/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -61,7 +164,7 @@ app.get('/get-object/:objectId', asyncHandler((req, res) => __awaiter(void 0, vo
 })));
 // Existing /get-foundation-details/:objectId endpoint
 app.get('/get-foundation-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _b, _c;
     const { objectId } = req.params;
     if (!objectId) {
         return res.status(400).send("Object ID is required");
@@ -70,7 +173,7 @@ app.get('/get-foundation-details/:objectId', asyncHandler((req, res) => __awaite
     if (!result) {
         return res.status(404).send("Object not found");
     }
-    const foundationIds = (_b = (_a = result.content) === null || _a === void 0 ? void 0 : _a.fields) === null || _b === void 0 ? void 0 : _b.foundation_ids;
+    const foundationIds = (_c = (_b = result.content) === null || _b === void 0 ? void 0 : _b.fields) === null || _c === void 0 ? void 0 : _c.foundation_ids;
     if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
         return res.status(404).send("No foundation IDs found in the object");
     }
@@ -85,7 +188,7 @@ app.get('/get-foundation-details/:objectId', asyncHandler((req, res) => __awaite
 })));
 // Retrieve detailed bounty information
 app.get('/get-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _c, _d;
+    var _d, _e;
     const { objectId } = req.params;
     if (!objectId) {
         return res.status(400).send("Object ID is required");
@@ -94,7 +197,7 @@ app.get('/get-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(vo
     if (!result) {
         return res.status(404).send("Object not found");
     }
-    const foundationIds = (_d = (_c = result.content) === null || _c === void 0 ? void 0 : _c.fields) === null || _d === void 0 ? void 0 : _d.foundation_ids;
+    const foundationIds = (_e = (_d = result.content) === null || _d === void 0 ? void 0 : _d.fields) === null || _e === void 0 ? void 0 : _e.foundation_ids;
     if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
         return res.status(404).send("No foundation IDs found in the object");
     }
@@ -104,8 +207,8 @@ app.get('/get-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(vo
     }));
     const foundationDetails = yield Promise.all(foundationDetailsPromises);
     const bountyDetailsPromises = foundationDetails.map((foundationDetail) => __awaiter(void 0, void 0, void 0, function* () {
-        var _e, _f;
-        const bountyTableKeys = (_f = (_e = foundationDetail.content) === null || _e === void 0 ? void 0 : _e.fields) === null || _f === void 0 ? void 0 : _f.bounty_table_keys;
+        var _f, _g;
+        const bountyTableKeys = (_g = (_f = foundationDetail.content) === null || _f === void 0 ? void 0 : _f.fields) === null || _g === void 0 ? void 0 : _g.bounty_table_keys;
         if (!bountyTableKeys || !Array.isArray(bountyTableKeys) || bountyTableKeys.length === 0) {
             return null;
         }
@@ -131,7 +234,7 @@ const filterFields = (obj, fieldsToRemove) => {
     }
     return filteredObj;
 };
-// digest, version, dataType, hasPublicTransfer 있는 버전
+// digest, version, dataType, hasPublicTransfer 없는 버전
 // foundationID 파라미터 전달 시 foundation과 bounty 상세 정보를 가져오는 엔드포인트
 app.get('/get-foundation-bounty-details/:foundationId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { foundationId } = req.params;
@@ -144,7 +247,7 @@ app.get('/get-foundation-bounty-details/:foundationId', asyncHandler((req, res) 
         return res.status(404).send("Foundation not found");
     }
     // foundationDetails에서 bounty_table과 bounty_table_keys 제거
-    const _g = foundationResult.content.fields, { bounty_table, bounty_table_keys } = _g, otherFields = __rest(_g, ["bounty_table", "bounty_table_keys"]);
+    const _h = foundationResult.content.fields, { bounty_table, bounty_table_keys } = _h, otherFields = __rest(_h, ["bounty_table", "bounty_table_keys"]);
     const filteredFoundationDetails = Object.assign(Object.assign({}, foundationResult), { content: Object.assign(Object.assign({}, foundationResult.content), { fields: otherFields }) });
     // bounty_table_keys의 각 키를 사용하여 bountyDetails 가져오기
     const bountyDetailsPromises = (bounty_table_keys || []).map((bountyKey) => __awaiter(void 0, void 0, void 0, function* () {
@@ -204,7 +307,7 @@ app.get('/get-foundation-bounty-details/:foundationId', asyncHandler((req, res) 
 // }));
 // New endpoint to get all bounty details based on platform ID
 app.get('/get-all-bounties/:platformId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _h, _j;
+    var _j, _k;
     const { platformId } = req.params;
     if (!platformId) {
         return res.status(400).send("Platform ID is required");
@@ -214,16 +317,16 @@ app.get('/get-all-bounties/:platformId', asyncHandler((req, res) => __awaiter(vo
     if (!platformResult) {
         return res.status(404).send("Platform not found");
     }
-    const foundationIds = (_j = (_h = platformResult.content) === null || _h === void 0 ? void 0 : _h.fields) === null || _j === void 0 ? void 0 : _j.foundation_ids;
+    const foundationIds = (_k = (_j = platformResult.content) === null || _j === void 0 ? void 0 : _j.fields) === null || _k === void 0 ? void 0 : _k.foundation_ids;
     if (!foundationIds || foundationIds.length === 0) {
         return res.status(404).send("No foundation IDs found in the platform object");
     }
     // Step 2: For each foundation ID, fetch the bounty table keys
     const foundationDetailsPromises = foundationIds.map((foundationId) => __awaiter(void 0, void 0, void 0, function* () {
-        var _k, _l;
+        var _l, _m;
         const foundationResult = yield (0, object_1.getObject)(foundationId);
         if (foundationResult) {
-            return ((_l = (_k = foundationResult.content) === null || _k === void 0 ? void 0 : _k.fields) === null || _l === void 0 ? void 0 : _l.bounty_table_keys) || [];
+            return ((_m = (_l = foundationResult.content) === null || _l === void 0 ? void 0 : _l.fields) === null || _m === void 0 ? void 0 : _m.bounty_table_keys) || [];
         }
         return [];
     }));
@@ -249,10 +352,10 @@ app.get('/get-all-bounties/:platformId', asyncHandler((req, res) => __awaiter(vo
 })));
 // New endpoint to retrieve completed bounty details
 app.get('/get-completed-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _m, _o;
+    var _o, _p;
     const { objectId } = req.params;
     const result = yield (0, object_1.getObject)(objectId);
-    const completedIds = ((_o = (_m = result.content) === null || _m === void 0 ? void 0 : _m.fields) === null || _o === void 0 ? void 0 : _o.completed) || [];
+    const completedIds = ((_p = (_o = result.content) === null || _o === void 0 ? void 0 : _o.fields) === null || _p === void 0 ? void 0 : _p.completed) || [];
     const completedDetails = yield Promise.all(completedIds.map((completedId) => __awaiter(void 0, void 0, void 0, function* () {
         const data = yield (0, object_1.getObject)(completedId);
         return data;
@@ -261,10 +364,10 @@ app.get('/get-completed-bounty-details/:objectId', asyncHandler((req, res) => __
 })));
 // New endpoint to retrieve processing bounty details
 app.get('/get-processing-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _p, _q;
+    var _q, _r;
     const { objectId } = req.params;
     const result = yield (0, object_1.getObject)(objectId);
-    const processingIds = ((_q = (_p = result.content) === null || _p === void 0 ? void 0 : _p.fields) === null || _q === void 0 ? void 0 : _q.processing) || [];
+    const processingIds = ((_r = (_q = result.content) === null || _q === void 0 ? void 0 : _q.fields) === null || _r === void 0 ? void 0 : _r.processing) || [];
     const processingDetails = yield Promise.all(processingIds.map((processingId) => __awaiter(void 0, void 0, void 0, function* () {
         const data = yield (0, object_1.getObject)(processingId);
         return data;
@@ -273,10 +376,10 @@ app.get('/get-processing-bounty-details/:objectId', asyncHandler((req, res) => _
 })));
 // New endpoint to retrieve unconfirmed proposal bounty details
 app.get('/get-unconfirmed-bounty-details/:objectId', asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _r, _s;
+    var _s, _t;
     const { objectId } = req.params;
     const result = yield (0, object_1.getObject)(objectId);
-    const unconfirmedProposalIds = ((_s = (_r = result.content) === null || _r === void 0 ? void 0 : _r.fields) === null || _s === void 0 ? void 0 : _s.unconfirmedProposal) || [];
+    const unconfirmedProposalIds = ((_t = (_s = result.content) === null || _s === void 0 ? void 0 : _s.fields) === null || _t === void 0 ? void 0 : _t.unconfirmedProposal) || [];
     const unconfirmedProposalDetails = yield Promise.all(unconfirmedProposalIds.map((proposalId) => __awaiter(void 0, void 0, void 0, function* () {
         const data = yield (0, object_1.getObject)(proposalId);
         return data;
