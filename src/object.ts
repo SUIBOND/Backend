@@ -41,7 +41,7 @@ export const multiGetObjects = async (objectIds: string[]): Promise<any> => {
 };
 
 // New getOwnedObjects function
-export const getOwnedObjects = async (walletAddress: string): Promise<any> => {
+export const getOwnedObjects = async (walletAddress: string, module: string, type: string ): Promise<any> => {
     try {
         const response = await axios.post(config.testnet_endpoint, {
             jsonrpc: '2.0',
@@ -50,6 +50,13 @@ export const getOwnedObjects = async (walletAddress: string): Promise<any> => {
             params: [
                 walletAddress,
                 {
+                    "filter": {
+                        "MatchAll": [
+                        {
+                            "StructType": `${config.package_id}::${module}::${type}`
+                        },
+                        ]
+                    },
                     options: { showType: true },
                 }
             ]

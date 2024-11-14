@@ -1,4 +1,23 @@
 // Foundation data structure
+export interface FoundationCap {
+    id: string;
+    owner: string;
+    name: string;
+    // url: string;
+    foundation_ids: string[];
+}
+
+export interface DeveloperCap {
+    id: string;
+    owner: string;
+    name: string;
+    url: string;
+    unsubmitted_proposal: string[];
+    submitted_proposal: string[];
+    rejected_or_expired_proposal: string[];
+    completed_proposal: string[];
+}
+
 interface Foundation {
     id: string;
     owner: string;
