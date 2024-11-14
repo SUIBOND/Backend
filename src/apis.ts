@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { getObject, getOwnedObjects } from './object'; // getOwnedObjects import
 
 import config from './config';
+import { parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData } from './parse';
 
 const app = express();
 const port = 3000;
@@ -25,20 +26,24 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
     }
 
     try {
+        // FoundationCap과 DeveloperCap 객체를 각각 가져옵니다.
         const foundationCapObjects = await getOwnedObjects(walletAddress, "foundation_cap", "FoundationCap");
         const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
-
 
         let result: any = null;
 
         if (foundationCapObjects.length > 0) {
-            const foundationCap = await getObject(foundationCapObjects[0].data.objectId);
-            console.log(foundationCap)
-            result = {foundationCap}
-        } else if (developerCapObjects.length > 0) { // Separate if to allow both caps to be processed
-            const developerCap = await getObject(developerCapObjects[0].data.objectId);
-            console.log(developerCap)
-            result = {developerCap}
+            const foundationCapData = await getObject(foundationCapObjects[0].data.objectId);
+            const foundationCap = parseFoundationCap(foundationCapData);
+            console.log(foundationCap);
+            result = { foundationCap };
+        }
+
+        if (developerCapObjects.length > 0) {
+            const developerCapData = await getObject(developerCapObjects[0].data.objectId);
+            const developerCap = parseDeveloperCap(developerCapData);
+            console.log(developerCap);
+            result = { ...result, developerCap };
         }
 
         if (!result) {
@@ -54,8 +59,8 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
 
 // Refactored endpoint to retrieve detailed foundation information
 // platformId가 소유하고 있는 전체 foundation의 목록을 가져오는 endpoint
-app.get('/foundations/:platformId', asyncHandler(async (req: Request, res: Response) => {
-    const { platformId } = req.params;
+app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
+    const platformId = config.platform_obj_id;
 
     if (!platformId) {
         return res.status(400).send("Platform Object ID is required");
@@ -98,7 +103,7 @@ const filterFields = (obj: any, fieldsToRemove: string[]): any => {
 
 // Function to retrieve and filter foundation and bounty details
 // foundationId가 소유하고 있는 bounty의 상세 정보를 가져오는 endpoint
-app.get('/foundations/bounties/:foundationId', asyncHandler(async (req: Request, res: Response) => {
+app.get('/bounties/:foundationId', asyncHandler(async (req: Request, res: Response) => {
     const { foundationId } = req.params;
 
     if (!foundationId) {
@@ -110,49 +115,52 @@ app.get('/foundations/bounties/:foundationId', asyncHandler(async (req: Request,
         return res.status(404).send("Foundation not found");
     }
 
-    const { bounty_table, bounty_table_keys, ...otherFields } = foundationResult.content.fields;
-    const filteredFoundationDetails = {
-        ...foundationResult,
-        content: {
-            ...foundationResult.content,
-            fields: otherFields
-        }
-    };
-
-    const bountyDetailsPromises = (bounty_table_keys || []).map(async (bountyKey: string) => await getObject(bountyKey));
+    const foundation = parseFoundationData(foundationResult);
+    const bountyDetailsPromises = foundation.bounty_table_keys.map(async (bountyKey: string) => await getObject(bountyKey));
     const bountyDetails = await Promise.all(bountyDetailsPromises);
 
-    const filteredBountyDetails = bountyDetails.map(bountyDetail =>
-        filterFields(bountyDetail, ["digest", "version", "dataType", "hasPublicTransfer"])
+    const parsedBountyDetails = bountyDetails.map(bountyDetail =>
+        parseBounty(bountyDetail.content.fields, bountyDetail.content.fields.id)
     );
 
     res.json({
-        foundationDetails: filteredFoundationDetails,
-        bountyDetails: filteredBountyDetails
+        foundationDetails: foundation,
+        bountyDetails: parsedBountyDetails
     });
 }));
 
-// New endpoint to retrieve DeveloperCap details by developerCapId
-// 해당 developerCapId가 소유한 proposals 데이터를 얻을 수 있음
-app.get('/developer/proposals/:developerCapId', asyncHandler(async (req: Request, res: Response) => {
-    const { developerCapId } = req.params;
+app.get('/dev/proposals/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+    const { walletAddress } = req.params;
 
-    if (!developerCapId) {
-        return res.status(400).json({ error: "DeveloperCap ID is required" });
+    if (!walletAddress) {
+        return res.status(400).json({ error: "Wallet address is required" });
     }
 
     try {
-        const developerCapDetails = await getObject(developerCapId);
-        if (!developerCapDetails) {
-            return res.status(404).json({ error: "DeveloperCap not found" });
+        // walletAddress로부터 DeveloperCap 객체를 가져옵니다.
+        const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
+
+        // DeveloperCap 객체가 없으면 404 에러 반환
+        if (developerCapObjects.length === 0) {
+            return res.status(404).json({ error: "No DeveloperCap found" });
         }
 
-        res.json({ developerCapDetails });
+        // 첫 번째 DeveloperCap 객체의 ObjectId를 사용하여 세부 정보를 가져옵니다.
+        const developerCapData = await getObject(developerCapObjects[0].data.objectId);
+
+        // DeveloperCap 데이터를 파싱하여 반환
+        const developerCap = parseDeveloperCap(developerCapData);
+
+        // DeveloperCap 정보 반환
+        res.json({ developerCap });
     } catch (error) {
         console.error("Error fetching DeveloperCap details:", error);
         res.status(500).json({ error: "Failed to retrieve DeveloperCap details" });
     }
 }));
+
+
+// submit milestone
 
 // app.get('/object/:platformId', asyncHandler(async (req: Request, res: Response) => {
 //     const { platformId } = req.params;

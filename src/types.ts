@@ -1,4 +1,3 @@
-
 // types.ts
 
 // Assuming that Coin is a type defined elsewhere, we will use it here
@@ -12,7 +11,7 @@ export interface FoundationCap {
     id: string;
     owner: string;
     name: string;
-    // url: string;
+    url: string;
     foundation_ids: string[];
 }
 
@@ -21,17 +20,33 @@ export interface DeveloperCap {
     owner: string;
     name: string;
     url: string;
-    unsubmitted_proposal: string[];
+    unsubmitted_proposal: Proposal[];
     submitted_proposal: string[];
     rejected_or_expired_proposal: string[];
     completed_proposal: string[];
 }
 
-export interface Project {
+export interface Foundation {
     id: string;
+    owner: string;
+    foundation_cap: string;
     name: string;
-    description: string;
-    // Add more fields as necessary
+    bounty_table: Record<string, Bounty>;
+    bounty_table_keys: string[];
+    bounties: Bounty[];
+}
+
+export interface Bounty {
+    id: string;
+    foundation: string;
+    name: string;
+    bounty_type: number;
+    risk_percent: number;
+    min_amount: number;
+    max_amount: number;
+    unconfiremd_proposals: Proposal[];
+    processing_proposals: Proposal[];
+    completed_proposals: Proposal[];
 }
 
 export interface Proposal {
@@ -54,22 +69,15 @@ export interface Proposal {
     stake: Coin<'SUI'>;
 }
 
-export interface Bounty {
+
+export interface Project {
     id: string;
-    foundation: string;
     name: string;
-    bounty_type: number;
-    risk_percent: number;
-    min_amount: number;
-    max_amount: number;
-    proposals: Proposal[];
+    description: string;
+    milestondes: Milestone[];
+    // Add more fields as necessary
 }
 
-export interface Foundation {
+export interface Milestone {
     id: string;
-    owner: string;
-    foundation_cap: string;
-    name: string;
-    bounty_table: Record<string, Bounty>;
-    bounty_table_keys: string[];
 }
