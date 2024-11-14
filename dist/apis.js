@@ -26,9 +26,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // apis.ts
 const express_1 = __importDefault(require("express"));
 const object_1 = require("./object"); // getOwnedObjects import
+const parse_1 = require("./parse"); // parse.ts에서 변환 함수 가져오기
 const app = (0, express_1.default)();
 const port = 3000;
-const packageId = '0x7e86551436c07a7c548ab2ebc4007284d8bfca9b2f4e9445a9738f0d664d1f4a'; // Platform ID variable
+const packageId = '0xd41317eeb1dbb1be8d818f8505fa674cb99debe112f0e221e2e9194227bd2cbf'; // Platform ID variable
 app.use(express_1.default.json()); // Parse JSON request body
 const asyncHandler = (fn) => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
@@ -95,17 +96,24 @@ app.get('/foundations/:platformId', asyncHandler((req, res) => __awaiter(void 0,
     if (!platformId) {
         return res.status(400).send("Platform Object ID is required");
     }
+    // 1. platformId로 객체 가져오기
     const result = yield (0, object_1.getObject)(platformId);
     if (!result) {
         return res.status(404).send("Object not found");
     }
+    // 2. 해당 객체에서 foundation_ids 추출
     const foundationIds = (_b = (_a = result.content) === null || _a === void 0 ? void 0 : _a.fields) === null || _b === void 0 ? void 0 : _b.foundation_ids;
     if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
         return res.status(404).send("No foundation IDs found in the object");
     }
-    const foundationDetailsPromises = foundationIds.map((foundationId) => __awaiter(void 0, void 0, void 0, function* () { return yield (0, object_1.getObject)(foundationId); }));
-    const foundationDetails = yield Promise.all(foundationDetailsPromises);
-    res.json({ foundationDetails });
+    // 3. foundationIds 각각에 대해 객체를 가져오고 파싱
+    const foundationDetailsPromises = foundationIds.map((foundationId) => __awaiter(void 0, void 0, void 0, function* () {
+        const foundationData = yield (0, object_1.getObject)(foundationId); // foundation 데이터 가져오기
+        return (0, parse_1.parseFoundationData)(foundationData); // 가져온 데이터를 파싱
+    }));
+    // 4. 모든 foundation 데이터를 파싱한 후 결과 반환
+    const foundation = yield Promise.all(foundationDetailsPromises);
+    res.json({ foundation }); // 파싱된 데이터를 응답으로 반환
 })));
 // Utility to filter specified fields from an object
 const filterFields = (obj, fieldsToRemove) => {
