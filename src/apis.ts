@@ -1,13 +1,13 @@
 // apis.ts
 import express, { Request, Response, NextFunction } from 'express';
 import { getObject, getOwnedObjects } from './object'; // getOwnedObjects import
-import { parseFoundationData } from './parse'; // parse.ts에서 변환 함수 가져오기
 
-import axios from 'axios';
+import config from './config';
 
 const app = express();
 const port = 3000;
-const packageId = '0xd41317eeb1dbb1be8d818f8505fa674cb99debe112f0e221e2e9194227bd2cbf'; // Platform ID variable
+const packageId = config.package_id;
+
 
 app.use(express.json()); // Parse JSON request body
 
@@ -16,8 +16,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
         Promise.resolve(fn(req, res, next)).catch(next);
     };
 
-// Refactored endpoint to check for FoundationCap or DeveloperCap, using a wallet address as a path parameter
-app.get('/validation/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
     const walletAddress = req.params.walletAddress;
 
     if (!walletAddress) {
@@ -26,48 +25,20 @@ app.get('/validation/:walletAddress', asyncHandler(async (req: Request, res: Res
     }
 
     try {
-        // Use getOwnedObjects function from object.ts
-        const ownedObjects = await getOwnedObjects(walletAddress);
-        console.log("Owned objects response:", ownedObjects);
+        const foundationCapObjects = await getOwnedObjects(walletAddress, "foundation_cap", "FoundationCap");
+        const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
 
-        // Construct the type strings dynamically using packageId
-        const foundationCapType = `${packageId}::foundation_cap::FoundationCap`;
-        const developerCapType = `${packageId}::developer_cap::DeveloperCap`;
-
-        console.log(`Looking for FoundationCap type: ${foundationCapType}`);
-        console.log(`Looking for DeveloperCap type: ${developerCapType}`);
-
-        // Find FoundationCap and DeveloperCap objects
-        const foundationCap = ownedObjects.find((obj: any) =>
-            obj.data?.type === foundationCapType
-        );
-
-        const developerCap = ownedObjects.find((obj: any) =>
-            obj.data?.type === developerCapType
-        );
 
         let result: any = null;
 
-        if (foundationCap) {
-            // Retrieve detailed FoundationCap object data using getObject function
-            const foundationCapObjectId = foundationCap.data.objectId;
-            const foundationCapDetails = await getObject(foundationCapObjectId);
-            console.log("FoundationCap details:", foundationCapDetails); // 로그 추가
-            result = { type: "FoundationCap", details: foundationCapDetails };
-        }
-        if (developerCap) { // Separate if to allow both caps to be processed
-            // Retrieve detailed DeveloperCap object data using getObject function
-            const developerCapObjectId = developerCap.data.objectId;
-            const developerCapDetails = await getObject(developerCapObjectId);
-            console.log("DeveloperCap details:", developerCapDetails); // 로그 추가
-            if (result) {
-                // If both caps are present, add DeveloperCap details
-                result.message = "Both FoundationCap and DeveloperCap are owned.";
-                result.developerCapDetails = developerCapDetails;
-            } else {
-                // If only DeveloperCap is present
-                result = { type: "DeveloperCap", details: developerCapDetails };
-            }
+        if (foundationCapObjects.length > 0) {
+            const foundationCap = await getObject(foundationCapObjects[0].data.objectId);
+            console.log(foundationCap)
+            result = {foundationCap}
+        } else if (developerCapObjects.length > 0) { // Separate if to allow both caps to be processed
+            const developerCap = await getObject(developerCapObjects[0].data.objectId);
+            console.log(developerCap)
+            result = {developerCap}
         }
 
         if (!result) {
