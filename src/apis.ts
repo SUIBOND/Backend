@@ -26,7 +26,7 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
     }
 
     try {
-        // FoundationCap과 DeveloperCap 객체를 각각 가져옵니다.
+        // Retrieve FoundationCap and DeveloperCap objects respectively
         const foundationCapObjects = await getOwnedObjects(walletAddress, "foundation_cap", "FoundationCap");
         const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
 
@@ -58,7 +58,7 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
 }));
 
 // Refactored endpoint to retrieve detailed foundation information
-// platformId가 소유하고 있는 전체 foundation의 목록을 가져오는 endpoint
+// Endpoint to retrieve the list of all foundations owned by the platformId
 app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
     const platformId = config.platform_obj_id;
 
@@ -66,28 +66,28 @@ app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
         return res.status(400).send("Platform Object ID is required");
     }
 
-    // 1. platformId로 객체 가져오기
+    // 1. Retrieve object using platformId
     const result = await getObject(platformId);
     if (!result) {
         return res.status(404).send("Object not found");
     }
 
-    // 2. 해당 객체에서 foundation_ids 추출
+    // 2. Extract foundation_ids from the object
     const foundationIds = result.content?.fields?.foundation_ids;
     if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
         return res.status(404).send("No foundation IDs found in the object");
     }
 
-    // 3. foundationIds 각각에 대해 객체를 가져오고 파싱
+    // 3. Retrieve and parse objects for each foundationId
     const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
-        const foundationData = await getObject(foundationId); // foundation 데이터 가져오기
-        return parseFoundationData(foundationData); // 가져온 데이터를 파싱
+        const foundationData = await getObject(foundationId); // Retrieve foundation data
+        return parseFoundationData(foundationData); // Parse the retrieved data
     });
 
-    // 4. 모든 foundation 데이터를 파싱한 후 결과 반환
+    // 4. Return the result after parsing all foundation data
     const foundation = await Promise.all(foundationDetailsPromises);
 
-    res.json({ foundation }); // 파싱된 데이터를 응답으로 반환
+    res.json({ foundation }); // Return parsed data in the response
 }));
 
 // Utility to filter specified fields from an object
@@ -102,7 +102,7 @@ const filterFields = (obj: any, fieldsToRemove: string[]): any => {
 };
 
 // Function to retrieve and filter foundation and bounty details
-// foundationId가 소유하고 있는 bounty의 상세 정보를 가져오는 endpoint
+// Endpoint to retrieve detailed bounty information owned by a foundationId
 app.get('/bounties/:foundationId', asyncHandler(async (req: Request, res: Response) => {
     const { foundationId } = req.params;
 
@@ -129,6 +129,61 @@ app.get('/bounties/:foundationId', asyncHandler(async (req: Request, res: Respon
     });
 }));
 
+app.get('/bountiesss', asyncHandler(async (req: Request, res: Response) => {
+    // config에서 platform_obj_id를 가져옵니다.
+    const platformId = config.platform_obj_id;  // 이제 platformId는 config에서 가져옵니다.
+
+    try {
+        // 1. platformId로 object를 가져옵니다.
+        const result = await getObject(platformId);  // config에서 가져온 platformId 사용
+        if (!result) {
+            return res.status(404).send("Object not found");
+        }
+
+        // 2. object에서 foundation_ids를 추출합니다.
+        const foundationIds = result.content?.fields?.foundation_ids;
+        if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
+            return res.status(404).send("No foundation IDs found in the object");
+        }
+
+        // 3. 각 foundationId에 대해 object를 가져오고, 해당 foundation의 bounty 데이터를 추출합니다.
+        const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
+            const foundationData = await getObject(foundationId);  // foundationId로 foundation data를 가져옵니다.
+            if (!foundationData) {
+                return null;
+            }
+            const foundation = parseFoundationData(foundationData);  // foundation data를 파싱합니다.
+            return foundation;  // 파싱된 foundation 데이터를 반환합니다.
+        });
+
+        // 4. 모든 foundation 데이터를 가져와서, 해당 foundation의 bounty 데이터도 함께 가져옵니다.
+        const foundationDetails = await Promise.all(foundationDetailsPromises);
+
+        // 각 foundation에 대한 bounty 정보도 함께 가져옵니다.
+        const bountyDetailsPromises = foundationDetails.flatMap(foundation => {
+            if (!foundation || !foundation.bounty_table_keys) return [];
+            return foundation.bounty_table_keys.map(async (bountyKey: string) => {
+                const bountyData = await getObject(bountyKey);  // bountyKey로 bounty data를 가져옵니다.
+                return bountyData ? parseBounty(bountyData.content.fields, bountyData.content.fields.id) : null;
+            });
+        });
+
+        // 5. 모든 bounty 데이터를 가져옵니다.
+        const bountyDetails = await Promise.all(bountyDetailsPromises);
+
+        // 6. 결과를 반환합니다.
+        res.json({
+            foundationDetails: foundationDetails.filter(f => f !== null),
+            bountyDetails: bountyDetails.filter(b => b !== null)
+        });
+    } catch (error: any) {
+        console.error("Error fetching bounty details:", error);
+        res.status(500).json({ error: "Failed to retrieve bounty details" });
+    }
+}));
+
+
+
 app.get('/dev/proposals/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
     const { walletAddress } = req.params;
 
@@ -137,27 +192,106 @@ app.get('/dev/proposals/:walletAddress', asyncHandler(async (req: Request, res: 
     }
 
     try {
-        // walletAddress로부터 DeveloperCap 객체를 가져옵니다.
+        // Retrieve DeveloperCap object from walletAddress
         const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
 
-        // DeveloperCap 객체가 없으면 404 에러 반환
+        // Return 404 error if no DeveloperCap objects are found
         if (developerCapObjects.length === 0) {
             return res.status(404).json({ error: "No DeveloperCap found" });
         }
 
-        // 첫 번째 DeveloperCap 객체의 ObjectId를 사용하여 세부 정보를 가져옵니다.
+        // Retrieve detailed data using the ObjectId of the first DeveloperCap object
         const developerCapData = await getObject(developerCapObjects[0].data.objectId);
 
-        // DeveloperCap 데이터를 파싱하여 반환
+        // Parse and return DeveloperCap data
         const developerCap = parseDeveloperCap(developerCapData);
 
-        // DeveloperCap 정보 반환
+        // Return DeveloperCap information
         res.json({ developerCap });
     } catch (error) {
         console.error("Error fetching DeveloperCap details:", error);
         res.status(500).json({ error: "Failed to retrieve DeveloperCap details" });
     }
 }));
+
+
+app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
+    try {
+        const platformId = config.platform_obj_id;
+        const platformObject = await getObject(platformId);
+
+        if (!platformObject) {
+            return res.status(404).json({ message: 'Platform object not found' });
+        }
+
+        const foundationIds = platformObject.content?.fields?.foundation_ids || [];
+        const foundationDetailsPromises = foundationIds.map((foundationId: string) => getObject(foundationId));
+        const foundationDetails = await Promise.all(foundationDetailsPromises);
+
+        const bountyTableDetailsPromises = foundationDetails.flatMap((foundation: any) => {
+            return foundation?.content?.fields?.bounty_table_keys?.map((bountyKey: string) => getObject(bountyKey)) || [];
+        });
+
+        const bountyTableDetails = await Promise.all(bountyTableDetailsPromises);
+
+        // 파싱된 결과 필드만 반환
+        const parsedBountyDetails = bountyTableDetails.map((bounty: any) => {
+            const fields = bounty.content.fields;
+            return {
+                objectId: bounty.objectId,
+                name: fields.name,
+                bounty_type: fields.bounty_type,
+                foundation: fields.foundation,
+                min_amount: fields.min_amount,
+                max_amount: fields.max_amount,
+                risk_percent: fields.risk_percent,
+                proposals: {
+                    completed: fields.proposals.fields.completed_proposal_ids,
+                    processing: fields.proposals.fields.processing_proposal_ids,
+                    unconfirmed: fields.proposals.fields.unconfirmed_proposal_ids
+                }
+            };
+        });
+
+        res.json({
+            bounties: parsedBountyDetails.filter(b => b !== null)
+        });
+
+    } catch (error) {
+        console.error("Error fetching bounty details: ", error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+}));
+
+
+
+
+app.get('/object/:objectId', asyncHandler(async (req: Request, res: Response) => {
+    try {
+        // URL 파라미터에서 objectId를 가져옴
+        const { objectId } = req.params;
+
+        // getObject를 호출하여 objectId로 데이터 조회
+        const objectData = await getObject(objectId);
+
+        // 데이터가 없을 경우 404 반환
+        if (!objectData) {
+            return res.status(404).json({ message: 'Object not found' });
+        }
+
+        // 결과 반환
+        res.json({
+            message: 'Object data retrieved successfully',
+            data: objectData
+        });
+
+    } catch (error) {
+        console.error("Error fetching object: ", error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+}));
+
+
 
 
 // submit milestone
