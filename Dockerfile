@@ -13,8 +13,11 @@ RUN npm install
 # 5. 소스 파일을 컨테이너에 복사
 COPY . .
 
-# 6. 포트 3000을 외부에 노출
+# 6. TypeScript 파일을 빌드 (npm run build)
+RUN npm run build
+
+# 7. 포트 3000을 외부에 노출
 EXPOSE 3000
 
-# 7. 애플리케이션 실행
-CMD ["node", "dist/apis.js"]
+# 8. 애플리케이션 실행
+CMD ["node", "dist/apis.js"]  # 변경된 파일명에 맞게 수정
