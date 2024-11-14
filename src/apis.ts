@@ -1,11 +1,13 @@
 // apis.ts
 import express, { Request, Response, NextFunction } from 'express';
 import { getObject, getOwnedObjects } from './object'; // getOwnedObjects import
+
 import config from './config';
 
 const app = express();
 const port = 3000;
 const packageId = config.package_id;
+
 
 app.use(express.json()); // Parse JSON request body
 
@@ -59,20 +61,28 @@ app.get('/foundations/:platformId', asyncHandler(async (req: Request, res: Respo
         return res.status(400).send("Platform Object ID is required");
     }
 
+    // 1. platformId로 객체 가져오기
     const result = await getObject(platformId);
     if (!result) {
         return res.status(404).send("Object not found");
     }
 
+    // 2. 해당 객체에서 foundation_ids 추출
     const foundationIds = result.content?.fields?.foundation_ids;
     if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
         return res.status(404).send("No foundation IDs found in the object");
     }
 
-    const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => await getObject(foundationId));
-    const foundationDetails = await Promise.all(foundationDetailsPromises);
+    // 3. foundationIds 각각에 대해 객체를 가져오고 파싱
+    const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
+        const foundationData = await getObject(foundationId); // foundation 데이터 가져오기
+        return parseFoundationData(foundationData); // 가져온 데이터를 파싱
+    });
 
-    res.json({ foundationDetails });
+    // 4. 모든 foundation 데이터를 파싱한 후 결과 반환
+    const foundation = await Promise.all(foundationDetailsPromises);
+
+    res.json({ foundation }); // 파싱된 데이터를 응답으로 반환
 }));
 
 // Utility to filter specified fields from an object

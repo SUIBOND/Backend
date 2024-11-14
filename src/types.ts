@@ -1,3 +1,12 @@
+
+// types.ts
+
+// Assuming that Coin is a type defined elsewhere, we will use it here
+export interface Coin<T> {
+    amount: number;
+    currency: T;
+}
+
 // Foundation data structure
 export interface FoundationCap {
     id: string;
@@ -18,16 +27,34 @@ export interface DeveloperCap {
     completed_proposal: string[];
 }
 
-interface Foundation {
+export interface Project {
     id: string;
-    owner: string;
-    foundation_cap: string;
     name: string;
-    bounty_array: Bounty[];
+    description: string;
+    // Add more fields as necessary
 }
 
-// Bounty data structure
-interface Bounty {
+export interface Proposal {
+    id: string;
+    proposer: string;
+    developer_cap: string;
+    foundation: string;
+    bounty: string;
+
+    title: string;
+    project: Project;
+
+    state: number;
+    submitted_epochs: number;
+    confirmed_epochs: number;
+    completed_epochs: number;
+    current_deadline_epochs: number;
+
+    grant_size: number;
+    stake: Coin<'SUI'>;
+}
+
+export interface Bounty {
     id: string;
     foundation: string;
     name: string;
@@ -35,22 +62,14 @@ interface Bounty {
     risk_percent: number;
     min_amount: number;
     max_amount: number;
-    // fund: Coin<'SUI'>;
-    proposals: ProposalsOfBounty;
+    proposals: Proposal[];
 }
 
-// ProposalsOfBounty structure
-interface ProposalsOfBounty {
-    unconfirmed_proposals: Proposal[];
-    processing_proposals: Proposal[];
-    completed_proposals: Proposal[];
-}
-
-interface Proposal {
+export interface Foundation {
     id: string;
-
-}
-
-interface Coin {
-
+    owner: string;
+    foundation_cap: string;
+    name: string;
+    bounty_table: Record<string, Bounty>;
+    bounty_table_keys: string[];
 }
