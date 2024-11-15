@@ -30,8 +30,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
     (req: Request, res: Response, next: NextFunction) => {
         Promise.resolve(fn(req, res, next)).catch(next);
     };
-
-app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+app.get('/foundation/identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
     const walletAddress = req.params.walletAddress;
 
     if (!walletAddress) {
@@ -42,7 +41,6 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
     try {
         // Retrieve FoundationCap and DeveloperCap objects respectively
         const foundationCapObjects = await getOwnedObjects(walletAddress, "foundation_cap", "FoundationCap");
-        const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
 
         let result: any = null;
 
@@ -53,6 +51,32 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
             result = { foundationCap };
         }
 
+        if (!result) {
+            res.status(404).json({ error: "No DeveloperCap or FoundationCap found" });
+        } else {
+            res.json(result);
+        }
+    } catch (error: any) {
+        console.error("Error fetching owned objects:", error);
+        res.status(500).json({ error: "Failed to retrieve owned objects" });
+    }
+}));
+
+
+app.get('/developer/identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+    const walletAddress = req.params.walletAddress;
+
+    if (!walletAddress) {
+        res.status(400).json({ error: "Wallet address is required" });
+        return;
+    }
+
+    try {
+        // Retrieve FoundationCap and DeveloperCap objects respectively
+        const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
+
+        let result: any = null;
+        
         if (developerCapObjects.length > 0) {
             const developerCapData = await getObjectData(developerCapObjects[0].data.objectId);
             const developerCap = await parseDeveloperCap(developerCapData!);
