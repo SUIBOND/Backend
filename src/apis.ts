@@ -93,6 +93,28 @@ app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
     res.json(foundationDataArray);
 }));
 
+app.get('/foundation/:foundationId', asyncHandler(async (req: Request, res: Response) => {
+}))
+
+app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
+}))
+
+app.get('/bounty/:bountyId', asyncHandler(async (req: Request, res: Response) => {
+}))
+
+app.get('/proposals/:devWalletAddress', asyncHandler(async (req: Request, res: Response) => {
+}))
+
+
+
+
+
+
+
+
+
+
+
 // Utility to filter specified fields from an object
 const filterFields = (obj: any, fieldsToRemove: string[]): any => {
     if (typeof obj !== 'object' || obj === null) return obj;
