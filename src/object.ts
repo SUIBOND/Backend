@@ -10,7 +10,7 @@ import { ObjectData } from "./types";
 
 export const client = new SuiClient({ url: config.testnet_endpoint });
 
-export const getObject = async (objectId: string): Promise<ObjectData | undefined> => {
+export const getObjectData = async (objectId: string): Promise<ObjectData | undefined> => {
     if (!objectId) {
         return;
     }
@@ -30,7 +30,7 @@ export const getObject = async (objectId: string): Promise<ObjectData | undefine
     }
 };
 
-export const getMultiObjects = async (objectIds: string[]): Promise<ObjectData[] | undefined> => {
+export const getMultipleObjectsData = async (objectIds: string[]): Promise<ObjectData[] | undefined> => {
     try {
         const input: MultiGetObjectsParams = {
             ids: objectIds,
