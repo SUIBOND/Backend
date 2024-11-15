@@ -17,29 +17,25 @@ export const parseObjectData = (data: any): ObjectData => {
     return objectData
 };
 
-export const parseSuibondPlatfom = (data: any): SuibondPlatform => {
-    const foundation = data.content?.fields;
+export const parseSuibondPlatfom = (data: ObjectData): SuibondPlatform => {
     return {
         id: data.objectId,
-        owner: "",
-        foundation_ids: [""]
+        owner: data.content.fields.owner,
+        foundation_ids: data.content.fields.foundation_ids,
     };
 };
-export const parseFoundationData = (data: any): Foundation => {
-    const foundation = data.content?.fields;
+export const parseFoundation = (data: ObjectData): Foundation => {
     return {
-        id: foundation?.id.id,
-        owner: foundation?.owner,
-        foundation_cap: foundation?.foundation_cap,
-        name: foundation?.name,
-        bounty_table: parseBountyTable(foundation?.bounty_table?.fields), // 수정
-        bounty_table_keys: foundation?.bounty_table_keys || [],            // 수정
-        bounties: parseBounties(foundation?.bounty_table?.fields)          // 수정
+        id: data.objectId,
+        owner: data.content.fields.owner,
+        foundation_cap: data.content.fields.foundation_cap,
+        name: data.content.fields.name,
+        bounties: data.content.fields.bounty_table_keys,
     };
 };
 
 // FoundationCap 데이터를 파싱하는 함수
-export const parseFoundationCap = (data: any): FoundationCap => {
+export const parseFoundationCap = (data: ObjectData): FoundationCap => {
     const fields = data.content?.fields;
     return {
         id: fields.id.id,
@@ -51,7 +47,7 @@ export const parseFoundationCap = (data: any): FoundationCap => {
 };
 
 // DeveloperCap 데이터를 파싱하는 함수
-export const parseDeveloperCap = (data: any): DeveloperCap => {
+export const parseDeveloperCap = (data: ObjectData): DeveloperCap => {
     const fields = data.content?.fields;
     return {
         id: fields.id.id,

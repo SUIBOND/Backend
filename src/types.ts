@@ -49,9 +49,8 @@ export interface Foundation {
     owner: string;
     foundation_cap: string;
     name: string;
-    bounty_table: Record<string, Bounty>;
-    bounty_table_keys: string[];
-    bounties: Bounty[];
+    // bounties: Bounty[];
+    bounties: string[];
 }
 
 export interface Bounty {

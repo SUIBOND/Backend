@@ -24,7 +24,7 @@ export const getObjectData = async (objectId: string): Promise<ObjectData | unde
         };
         const res = await client.getObject(input);
 
-        return parseObjectData(res.data);
+        return res ? parseObjectData(res.data) : undefined;
     } catch (e) {
         console.log("getObject failed: ", e, "objectId: ", objectId);
     }
@@ -34,9 +34,12 @@ export const getMultipleObjectsData = async (objectIds: string[]): Promise<Objec
     try {
         const input: MultiGetObjectsParams = {
             ids: objectIds,
+            options: {
+                showContent: true,
+            }
         };
         const res = await client.multiGetObjects(input);
-        return res.map((res) => parseObjectData(res.data));
+        return res ? res.map((res) => parseObjectData(res.data)) : undefined;
     } catch (e) {
         console.error("batchGetObjects failed", e);
     }
