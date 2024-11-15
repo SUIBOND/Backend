@@ -18,7 +18,6 @@ export const parseObjectData = (data: any): ObjectData => {
     return objectData
 };
 
-// FoundationCap 데이터를 파싱하는 함수
 export const parseFoundationCap = (data: ObjectData): FoundationCap => {
     const fields = data.content?.fields;
     return {
@@ -30,7 +29,6 @@ export const parseFoundationCap = (data: ObjectData): FoundationCap => {
     };
 };
 
-// DeveloperCap 데이터를 파싱하는 함수
 export const parseDeveloperCap = (data: ObjectData): DeveloperCap => {
     const fields = data.content?.fields;
     return {
@@ -46,7 +44,6 @@ export const parseDeveloperCap = (data: ObjectData): DeveloperCap => {
     };
 };
 
-
 export const parseSuibondPlatfom = (data: ObjectData): SuibondPlatform => {
     return {
         id: data.objectId,
@@ -54,6 +51,7 @@ export const parseSuibondPlatfom = (data: ObjectData): SuibondPlatform => {
         foundation_ids: data.content.fields.foundation_ids,
     };
 };
+
 export const parseFoundation = async (data: ObjectData): Promise<Foundation> => {
     const pBounties = await getMultipleObjectsData(data.content.fields.bounty_table_keys)
         .then(data => data ? data.map(async item => await parseBounty(item)) : [])
@@ -67,7 +65,6 @@ export const parseFoundation = async (data: ObjectData): Promise<Foundation> => 
     };
 };
 
-// parseBounty 함수 추가:
 export const parseBounty = async (data: ObjectData): Promise<Bounty> => {
     const unconfirmed_proposals = await getMultipleObjectsData(data.content.fields.proposals.fields.unconfirmed_proposal_ids)
         .then(data => data ? data.map(item => parseProposal(item)) : []);
@@ -135,127 +132,4 @@ const parseMilestone = (milestoneData: any): Milestone => {
     };
 };
 
-// 필요 없으면 제거 예정 ------------------------------------------
-// parseBountyForEndpoint 함수 추가
-// export const parseBountyForEndpoint = (bountyData: any): Bounty => {
-//     return {
-//         id: bountyData.id,
-//         foundation: bountyData.foundation,
-//         name: bountyData.name,
-//         bounty_type: bountyData.bounty_type,
-//         risk_percent: bountyData.risk_percent,
-//         min_amount: bountyData.min_amount,
-//         max_amount: bountyData.max_amount,
-//         // unconfirmed_proposals: parseProposalsForEndpoint(bountyData.unconfiremd_proposals),
-//         // processing_proposals: parseProposalsForEndpoint(bountyData.processing_proposals),
-//         // completed_proposals: parseProposalsForEndpoint(bountyData.completed_proposals),
-//     };
-// };
 
-// parseProposalsForEndpoint 함수 추가
-// const parseProposalsForEndpoint = (proposals: any[]): Proposal[] => {
-//     return proposals?.map((proposal: any) => ({
-//         id: proposal.id,
-//         proposer: proposal.proposer,
-//         developer_cap: proposal.developer_cap,
-//         foundation: proposal.foundation,
-//         bounty: proposal.bounty,
-//         title: proposal.title,
-//         project: parseProjectForEndpoint(proposal.project),
-//         state: proposal.state,
-//         submitted_epochs: proposal.submitted_epochs,
-//         confirmed_epochs: proposal.confirmed_epochs,
-//         completed_epochs: proposal.completed_epochs,
-//         current_deadline_epochs: proposal.current_deadline_epochs,
-//         grant_size: proposal.grant_size,
-//         stake: parseCoinForEndpoint(proposal.stake),
-//     })) || [];
-// };
-
-// parseProjectForEndpoint 함수 추가
-// const parseProjectForEndpoint = (project: any): Project => {
-//     return {
-//         id: project.id,
-//         title: project.name,
-//         // description: project.description,
-//         // milestondes: project.milestondes.map((milestone: any) => parseMilestoneForEndpoint(milestone)),
-//         // id: string;
-//         proposal: project,
-//         // title: project,
-//         description: project,
-//         duration_epochs: project,
-//         milestondes: project,
-//         current_processing_milestone_number: project,
-//     };
-// };
-
-// parseMilestoneForEndpoint 함수 추가
-// const parseMilestoneForEndpoint = (milestone: any): Milestone => {
-//     return {
-//         id: milestone.id,
-//     };
-// };
-
-// parseCoinForEndpoint 함수 추가
-const parseCoinForEndpoint = (coin: any): Coin<'SUI'> => {
-    return {
-        amount: coin?.amount,
-        currency: 'SUI',
-    };
-};
-// 필요 없으면 제거 예정 ------------------------------------------
-
-
-
-// // parseBountyTable 함수 수정:
-// const parseBountyTable = (bountyTable: any): Record<string, Bounty> => {
-//     const bountyRecords: Record<string, Bounty> = {};
-//     if (bountyTable) {
-//         bountyTable.bounty_table_keys?.forEach((key: string, index: number) => {
-//             bountyRecords[key] = parseBounty(bountyTable.bounty_table.fields[index], key);
-//         });
-//     }
-//     return bountyRecords;
-// };
-
-
-
-// // parseBounties 함수 수정:
-// const parseBounties = (bountyTable: any): Bounty[] => {
-//     return bountyTable.bounty_table_keys?.map((key: string, index: number) =>
-//         parseBounty(bountyTable.bounty_table.fields[index], key)
-//     ) || [];
-// };
-
-
-
-
-// Proposal 데이터를 파싱하는 함수
-const parseProposals = (proposals: any): Proposal[] => {
-    return proposals?.map((proposal: any) => ({
-        id: proposal.id,
-        proposer: proposal.proposer,
-        developer_cap: proposal.developer_cap,
-        foundation: proposal.foundation,
-        bounty: proposal.bounty,
-        title: proposal.title,
-        project: parseProject(proposal.project),
-        state: proposal.state,
-        submitted_epochs: proposal.submitted_epochs,
-        confirmed_epochs: proposal.confirmed_epochs,
-        completed_epochs: proposal.completed_epochs,
-        current_deadline_epochs: proposal.current_deadline_epochs,
-        grant_size: proposal.grant_size,
-        stake: parseCoin(proposal.stake),
-    })) || [];
-};
-
-
-
-// Coin 데이터를 파싱하는 함수
-const parseCoin = (coin: any): Coin<'SUI'> => {
-    return {
-        amount: coin?.amount,
-        currency: 'SUI',
-    };
-};
