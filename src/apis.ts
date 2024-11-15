@@ -161,7 +161,7 @@ app.get('/proposals/:devWalletAddress', asyncHandler(async (req: Request, res: R
         }
 
         if (!result) {
-            res.status(404).json({ error: "No DeveloperCap or FoundationCap found" });
+            res.status(404).json({ error: "No DeveloperCap or FoundationCap found." });
         } else {
             res.json(result);
         }
