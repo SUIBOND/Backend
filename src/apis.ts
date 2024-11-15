@@ -8,7 +8,7 @@ import config from './config';
 import { parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData } from './parse';
 
 const app = express();
-const port = 3000;
+const port = 4000;
 const packageId = config.package_id;
 
 app.use(cors({
