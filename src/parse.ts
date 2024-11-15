@@ -68,6 +68,7 @@ export const parseFoundation = async (data: ObjectData): Promise<Foundation> => 
         owner: data.content.fields.owner,
         foundation_cap: data.content.fields.foundation_cap,
         name: data.content.fields.name,
+        url: data.content.fields.url,
         bounties: bounties
     };
 };

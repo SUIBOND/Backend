@@ -49,6 +49,7 @@ export interface Foundation {
     owner: string;
     foundation_cap: string;
     name: string;
+    url: string;
     bounties: Bounty[];
     // bounty_ids: string[];
 }
