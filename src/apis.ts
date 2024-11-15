@@ -1,6 +1,8 @@
 // apis.ts
 import express, { Request, Response, NextFunction } from 'express';
 import { getObject, getOwnedObjects } from './object'; // getOwnedObjects import
+import cors from 'cors';
+
 
 import config from './config';
 import { parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData } from './parse';
@@ -8,6 +10,12 @@ import { parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData
 const app = express();
 const port = 3000;
 const packageId = config.package_id;
+
+app.use(cors({
+    origin: 'https://suibond.vercel.app',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 
 app.use(express.json()); // Parse JSON request body
@@ -300,34 +308,6 @@ app.get('/bounties-full', asyncHandler(async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error("Error fetching full bounty details: ", error);
-        res.status(500).json({ message: 'Internal Server Error' });
-    }
-}));
-
-
-
-
-app.get('/object/:objectId', asyncHandler(async (req: Request, res: Response) => {
-    try {
-        // URL 파라미터에서 objectId를 가져옴
-        const { objectId } = req.params;
-
-        // getObject를 호출하여 objectId로 데이터 조회
-        const objectData = await getObject(objectId);
-
-        // 데이터가 없을 경우 404 반환
-        if (!objectData) {
-            return res.status(404).json({ message: 'Object not found' });
-        }
-
-        // 결과 반환
-        res.json({
-            message: 'Object data retrieved successfully',
-            data: objectData
-        });
-
-    } catch (error) {
-        console.error("Error fetching object: ", error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 }));
