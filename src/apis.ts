@@ -2,6 +2,10 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { getMultipleObjectsData, getObjectData, getOwnedObjects } from './object'; // getOwnedObjects import
 import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import axios from 'axios';
 
 
 import config from './config';
@@ -10,15 +14,15 @@ import { ObjectData, Bounty } from './types';
 
 const app = express();
 const port = 4000;
-const packageId = config.package_id;
+const { publisher_url, aggregator_url } = config;
+
+
 
 app.use(cors({
     origin: ['https://suibond.vercel.app', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-
 
 app.use(express.json()); // Parse JSON request body
 
@@ -172,7 +176,81 @@ app.get('/proposals/:devWalletAddress', asyncHandler(async (req: Request, res: R
 }));
 
 
+// Multer 설정: 메모리 저장소 사용
+const upload = multer({
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['application/pdf'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF files are allowed.'));
+        }
+    },
+});
 
+// 파일 업로드 API (디스크에 저장 없이 Walrus로 바로 업로드)
+app.post(
+    '/upload',
+    upload.single('file'),
+    asyncHandler(async (req: Request, res: Response) => {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        try {
+            // Walrus API로 파일 스트림 업로드
+            const response = await axios.put(
+                `${publisher_url}/v1/store?epochs=5`,
+                req.file.buffer, // Multer 메모리 버퍼 사용
+                {
+                    headers: {
+                        'Content-Type': req.file.mimetype,
+                        'Content-Length': req.file.size.toString(),
+                    },
+                }
+            );
+
+            return res.status(200).json({
+                message: 'File uploaded to Walrus successfully',
+                walrusResponse: response.data,
+            });
+        } catch (error: any) {
+            console.error(error.message);
+            return res.status(500).json({ error: 'File upload failed' });
+        }
+    })
+);
+
+// Blob 다운로드 API
+app.get(
+    '/download/:blobId',
+    asyncHandler(async (req: Request, res: Response) => {
+        const { blobId } = req.params;
+
+        try {
+            // Walrus API로 Blob 데이터 가져오기
+            const response = await axios.get(`${aggregator_url}/v1/${blobId}`, {
+                responseType: 'stream',
+            });
+
+            // 적절한 파일 이름 설정 및 스트림으로 응답 전송
+            res.setHeader('Content-Disposition', `attachment; filename=${blobId}`);
+            response.data.pipe(res);
+        } catch (error: any) {
+            console.error(error.message);
+            return res.status(500).json({ error: 'Blob download failed' });
+        }
+    })
+);
+
+
+
+
+
+
+
+// -----------------------------------------------------------------------------------------------
 
 
 
