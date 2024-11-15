@@ -30,7 +30,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
     (req: Request, res: Response, next: NextFunction) => {
         Promise.resolve(fn(req, res, next)).catch(next);
     };
-app.get('/foundation/identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+app.get('/f-identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
     const walletAddress = req.params.walletAddress;
 
     if (!walletAddress) {
@@ -63,7 +63,7 @@ app.get('/foundation/identification/:walletAddress', asyncHandler(async (req: Re
 }));
 
 
-app.get('/developer/identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+app.get('/d-identification/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
     const walletAddress = req.params.walletAddress;
 
     if (!walletAddress) {
@@ -76,7 +76,7 @@ app.get('/developer/identification/:walletAddress', asyncHandler(async (req: Req
         const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
 
         let result: any = null;
-        
+
         if (developerCapObjects.length > 0) {
             const developerCapData = await getObjectData(developerCapObjects[0].data.objectId);
             const developerCap = await parseDeveloperCap(developerCapData!);
