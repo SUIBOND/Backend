@@ -86,10 +86,10 @@ app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // 3. Retrieve and parse objects for each foundationId
-    const foundationObjectDataArray = await getMultipleObjectsData(platfomObjectData.foundation_ids);
-    const foundationDataArray = foundationObjectDataArray?.map(data => data ? parseFoundation(data) : null);
+    const foundationDataArray = await getMultipleObjectsData(platfomObjectData.foundation_ids)
+        .then(data => data ? data.map(async item => await parseFoundation(item)) : []);
 
-    // res.json({ foundation }); // Return parsed data in the response
+    foundationDataArray.map(async foundation => console.log((await foundation).bounties))
     res.json(foundationDataArray);
 }));
 
