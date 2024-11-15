@@ -10,8 +10,8 @@ interface Config {
 
 // 설정 정보를 가져오는 함수
 const config: Config = {
-  package_id: "0xa7af992f31cd7ea6899413ec8231a9193e4c9f2507e98d79cf7ff716e1de2c12",
-  platform_obj_id: "0x97d9b896dcb1aa7e1cb70572fad121c1853d6bb0bd6bc7850603582f0673a802",
+  package_id: "0x42487c5b6ca8ee7c1b98c6a60e1a6315f08bba6b0cd38276147ef85b69b83048",
+  platform_obj_id: "0x308a516f13f7855bac7f991ad8a023565ed3098c43211a38a8c8d06fd3b5026b",
   testnet_endpoint: "https://rpc-testnet.suiscan.xyz:443",
 };
 
