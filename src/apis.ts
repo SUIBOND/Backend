@@ -89,11 +89,24 @@ app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
     const foundationDataArray = await getMultipleObjectsData(platfomObjectData.foundation_ids)
         .then(data => data ? data.map(async item => await parseFoundation(item)) : []);
 
-    foundationDataArray.map(async foundation => console.log((await foundation).bounties))
-    res.json(foundationDataArray);
+    res.json(await Promise.all(foundationDataArray));
 }));
 
 app.get('/foundation/:foundationId', asyncHandler(async (req: Request, res: Response) => {
+    const foundationId = req.params.foundationId;
+
+    if (!foundationId) {
+        res.status(400).json({ error: "foundationId address is required" });
+        return;
+    }
+
+    const foundationData = await getObjectData(foundationId).then( data => data ? parseFoundation(data) : null);
+    if (!foundationData) {
+        return res.status(404).send("Foundation Object not found");
+    }
+    console.log(foundationData)
+
+    res.json(foundationData);
 }))
 
 app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
