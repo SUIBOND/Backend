@@ -12,10 +12,11 @@ const port = 3000;
 const packageId = config.package_id;
 
 app.use(cors({
-    origin: 'https://suibond.vercel.app',
+    origin: ['https://suibond.vercel.app', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
 
 
 app.use(express.json()); // Parse JSON request body
