@@ -83,7 +83,8 @@ export const parseBounty = async (data: ObjectData): Promise<Bounty> => {
     return {
         id: data.objectId,
         foundation: data.content.fields.foundation,
-        name: data.content.fields.name,
+        title: data.content.fields.name,
+        description: data.content.fields.name,
         bounty_type: data.content.fields.bounty_type,
         risk_percent: data.content.fields.risk_percent,
         min_amount: data.content.fields.min_amount,
