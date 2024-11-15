@@ -1,14 +1,15 @@
 // apis.ts
 import express, { Request, Response, NextFunction } from 'express';
-import { getObject, getOwnedObjects } from './object'; // getOwnedObjects import
+import { getMultipleObjectsData, getObjectData, getOwnedObjects } from './object'; // getOwnedObjects import
 import cors from 'cors';
 
 
 import config from './config';
-import { parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData } from './parse';
+import { parseObjectData, parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundation, parseSuibondPlatfom } from './parse';
+import { ObjectData } from './types';
 
 const app = express();
-const port = 3000;
+const port = 4000;
 const packageId = config.package_id;
 
 app.use(cors({
@@ -42,17 +43,17 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
         let result: any = null;
 
         if (foundationCapObjects.length > 0) {
-            const foundationCapData = await getObject(foundationCapObjects[0].data.objectId);
-            const foundationCap = parseFoundationCap(foundationCapData);
-            console.log(foundationCap);
+            const foundationCapData = await getObjectData(foundationCapObjects[0].data.objectId);
+            const foundationCap = parseFoundationCap(foundationCapData!);
+            // console.log(foundationCap);
             result = { foundationCap };
         }
 
         if (developerCapObjects.length > 0) {
-            const developerCapData = await getObject(developerCapObjects[0].data.objectId);
-            const developerCap = parseDeveloperCap(developerCapData);
-            console.log(developerCap);
-            result = { ...result, developerCap };
+            const developerCapData = await getObjectData(developerCapObjects[0].data.objectId);
+            const developerCap = await parseDeveloperCap(developerCapData!);
+            // console.log(developerCap);
+            result = { developerCap };
         }
 
         if (!result) {
@@ -66,37 +67,30 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
     }
 }));
 
-// Refactored endpoint to retrieve detailed foundation information
-// Endpoint to retrieve the list of all foundations owned by the platformId
 app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
     const platformId = config.platform_obj_id;
 
     if (!platformId) {
-        return res.status(400).send("Platform Object ID is required");
+        return res.status(400).send("Suibond Platform Object ID is required");
     }
 
     // 1. Retrieve object using platformId
-    const result = await getObject(platformId);
-    if (!result) {
-        return res.status(404).send("Object not found");
+    const platfomObjectData = await getObjectData(platformId).then( data => data ? parseSuibondPlatfom(data) : null);
+    if (!platfomObjectData) {
+        return res.status(404).send("Suibond Platform Object not found");
     }
 
     // 2. Extract foundation_ids from the object
-    const foundationIds = result.content?.fields?.foundation_ids;
-    if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
+    if (platfomObjectData.foundation_ids.length === 0) {
         return res.status(404).send("No foundation IDs found in the object");
     }
 
     // 3. Retrieve and parse objects for each foundationId
-    const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
-        const foundationData = await getObject(foundationId); // Retrieve foundation data
-        return parseFoundationData(foundationData); // Parse the retrieved data
-    });
+    const foundationDataArray = await getMultipleObjectsData(platfomObjectData.foundation_ids)
+        .then(data => data ? data.map(async item => await parseFoundation(item)) : []);
 
-    // 4. Return the result after parsing all foundation data
-    const foundation = await Promise.all(foundationDetailsPromises);
-
-    res.json({ foundation }); // Return parsed data in the response
+    foundationDataArray.map(async foundation => console.log((await foundation).bounties))
+    res.json(foundationDataArray);
 }));
 
 // Utility to filter specified fields from an object
@@ -119,23 +113,23 @@ app.get('/bounties/:foundationId', asyncHandler(async (req: Request, res: Respon
         return res.status(400).send("Foundation ID is required");
     }
 
-    const foundationResult = await getObject(foundationId);
+    const foundationResult = await getObjectData(foundationId);
     if (!foundationResult) {
         return res.status(404).send("Foundation not found");
     }
 
-    const foundation = parseFoundationData(foundationResult);
-    const bountyDetailsPromises = foundation.bounty_table_keys.map(async (bountyKey: string) => await getObject(bountyKey));
-    const bountyDetails = await Promise.all(bountyDetailsPromises);
+    // const foundation = parseFoundationData(foundationResult);
+    // const bountyDetailsPromises = foundation.bounty_table_keys.map(async (bountyKey: string) => await getObjectData(bountyKey));
+    // const bountyDetails = await Promise.all(bountyDetailsPromises);
 
-    const parsedBountyDetails = bountyDetails.map(bountyDetail =>
-        parseBounty(bountyDetail.content.fields, bountyDetail.content.fields.id)
-    );
+    // const parsedBountyDetails = bountyDetails.map(bountyDetail =>
+    //     parseBounty(bountyDetail.content.fields, bountyDetail.content.fields.id)
+    // );
 
-    res.json({
-        foundationDetails: foundation,
-        bountyDetails: parsedBountyDetails
-    });
+    // res.json({
+    //     foundationDetails: foundation,
+    //     bountyDetails: parsedBountyDetails
+    // });
 }));
 
 app.get('/bountiesss', asyncHandler(async (req: Request, res: Response) => {
@@ -144,7 +138,7 @@ app.get('/bountiesss', asyncHandler(async (req: Request, res: Response) => {
 
     try {
         // 1. platformId로 object를 가져옵니다.
-        const result = await getObject(platformId);  // config에서 가져온 platformId 사용
+        const result = await getObjectData(platformId);  // config에서 가져온 platformId 사용
         if (!result) {
             return res.status(404).send("Object not found");
         }
@@ -157,34 +151,34 @@ app.get('/bountiesss', asyncHandler(async (req: Request, res: Response) => {
 
         // 3. 각 foundationId에 대해 object를 가져오고, 해당 foundation의 bounty 데이터를 추출합니다.
         const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
-            const foundationData = await getObject(foundationId);  // foundationId로 foundation data를 가져옵니다.
+            const foundationData = await getObjectData(foundationId);  // foundationId로 foundation data를 가져옵니다.
             if (!foundationData) {
                 return null;
             }
-            const foundation = parseFoundationData(foundationData);  // foundation data를 파싱합니다.
-            return foundation;  // 파싱된 foundation 데이터를 반환합니다.
+            // const foundation = parseFoundationData(foundationData);  // foundation data를 파싱합니다.
+            // return foundation;  // 파싱된 foundation 데이터를 반환합니다.
         });
 
         // 4. 모든 foundation 데이터를 가져와서, 해당 foundation의 bounty 데이터도 함께 가져옵니다.
         const foundationDetails = await Promise.all(foundationDetailsPromises);
 
-        // 각 foundation에 대한 bounty 정보도 함께 가져옵니다.
-        const bountyDetailsPromises = foundationDetails.flatMap(foundation => {
-            if (!foundation || !foundation.bounty_table_keys) return [];
-            return foundation.bounty_table_keys.map(async (bountyKey: string) => {
-                const bountyData = await getObject(bountyKey);  // bountyKey로 bounty data를 가져옵니다.
-                return bountyData ? parseBounty(bountyData.content.fields, bountyData.content.fields.id) : null;
-            });
-        });
+        // // 각 foundation에 대한 bounty 정보도 함께 가져옵니다.
+        // const bountyDetailsPromises = foundationDetails.flatMap(foundation => {
+        //     if (!foundation || !foundation.bounty_table_keys) return [];
+        //     return foundation.bounty_table_keys.map(async (bountyKey: string) => {
+        //         const bountyData = await getObjectData(bountyKey);  // bountyKey로 bounty data를 가져옵니다.
+        //         return bountyData ? parseBounty(bountyData.content.fields, bountyData.content.fields.id) : null;
+        //     });
+        // });
 
-        // 5. 모든 bounty 데이터를 가져옵니다.
-        const bountyDetails = await Promise.all(bountyDetailsPromises);
+        // // 5. 모든 bounty 데이터를 가져옵니다.
+        // const bountyDetails = await Promise.all(bountyDetailsPromises);
 
-        // 6. 결과를 반환합니다.
-        res.json({
-            foundationDetails: foundationDetails.filter(f => f !== null),
-            bountyDetails: bountyDetails.filter(b => b !== null)
-        });
+        // // 6. 결과를 반환합니다.
+        // res.json({
+        //     foundationDetails: foundationDetails.filter(f => f !== null),
+        //     bountyDetails: bountyDetails.filter(b => b !== null)
+        // });
     } catch (error: any) {
         console.error("Error fetching bounty details:", error);
         res.status(500).json({ error: "Failed to retrieve bounty details" });
@@ -210,13 +204,13 @@ app.get('/dev/proposals/:walletAddress', asyncHandler(async (req: Request, res: 
         }
 
         // Retrieve detailed data using the ObjectId of the first DeveloperCap object
-        const developerCapData = await getObject(developerCapObjects[0].data.objectId);
+        const developerCapData = await getObjectData(developerCapObjects[0].data.objectId);
 
         // Parse and return DeveloperCap data
-        const developerCap = parseDeveloperCap(developerCapData);
+        // const developerCap = parseDeveloperCap(developerCapData);
 
         // Return DeveloperCap information
-        res.json({ developerCap });
+        // res.json({ developerCap });
     } catch (error) {
         console.error("Error fetching DeveloperCap details:", error);
         res.status(500).json({ error: "Failed to retrieve DeveloperCap details" });
@@ -227,18 +221,18 @@ app.get('/dev/proposals/:walletAddress', asyncHandler(async (req: Request, res: 
 app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
     try {
         const platformId = config.platform_obj_id;
-        const platformObject = await getObject(platformId);
+        const platformObject = await getObjectData(platformId);
 
         if (!platformObject) {
             return res.status(404).json({ message: 'Platform object not found' });
         }
 
         const foundationIds = platformObject.content?.fields?.foundation_ids || [];
-        const foundationDetailsPromises = foundationIds.map((foundationId: string) => getObject(foundationId));
+        const foundationDetailsPromises = foundationIds.map((foundationId: string) => getObjectData(foundationId));
         const foundationDetails = await Promise.all(foundationDetailsPromises);
 
         const bountyTableDetailsPromises = foundationDetails.flatMap((foundation: any) => {
-            return foundation?.content?.fields?.bounty_table_keys?.map((bountyKey: string) => getObject(bountyKey)) || [];
+            return foundation?.content?.fields?.bounty_table_keys?.map((bountyKey: string) => getObjectData(bountyKey)) || [];
         });
 
         const bountyTableDetails = await Promise.all(bountyTableDetailsPromises);
@@ -262,9 +256,9 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
             };
         });
 
-        res.json({
-            bounties: parsedBountyDetails.filter(b => b !== null)
-        });
+        // res.json({
+        //     bounties: parsedBountyDetails.filter(b => b !== null)
+        // });
 
     } catch (error) {
         console.error("Error fetching bounty details: ", error);
@@ -276,19 +270,19 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
 app.get('/bounties-full', asyncHandler(async (req: Request, res: Response) => {
     try {
         const platformId = config.platform_obj_id;
-        const platformObject = await getObject(platformId);
+        const platformObject = await getObjectData(platformId);
 
         if (!platformObject) {
             return res.status(404).json({ message: 'Platform object not found' });
         }
 
         const foundationIds = platformObject.content?.fields?.foundation_ids || [];
-        const foundationDetailsPromises = foundationIds.map((foundationId: string) => getObject(foundationId));
+        const foundationDetailsPromises = foundationIds.map((foundationId: string) => getObjectData(foundationId));
         const foundationDetails = await Promise.all(foundationDetailsPromises);
 
         // 각 foundation의 bounty_table_keys를 가져와 모든 bounty 객체를 포함하도록 설정
         const bountyTableDetailsPromises = foundationDetails.flatMap((foundation: any) => {
-            return foundation?.content?.fields?.bounty_table_keys?.map((bountyKey: string) => getObject(bountyKey)) || [];
+            return foundation?.content?.fields?.bounty_table_keys?.map((bountyKey: string) => getObjectData(bountyKey)) || [];
         });
 
         const bountyTableDetails = await Promise.all(bountyTableDetailsPromises);
@@ -327,7 +321,7 @@ app.get('/bounties-full', asyncHandler(async (req: Request, res: Response) => {
 
 //     try {
 //         // Retrieve the main object details using platformId
-//         const objectDetails = await getObject(platformId);
+//         const objectDetails = await getObjectData(platformId);
 
 //         if (!objectDetails) {
 //             return res.status(404).json({ error: "Object not found" });
@@ -338,15 +332,15 @@ app.get('/bounties-full', asyncHandler(async (req: Request, res: Response) => {
 //         const foundationDetails: any[] = [];
 
 //         if (foundationIds && Array.isArray(foundationIds) && foundationIds.length > 0) {
-//             // Fetch details of each foundation_id using getObject
+//             // Fetch details of each foundation_id using getObjectData
 //             const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
-//                 const foundationDetail = await getObject(foundationId);
+//                 const foundationDetail = await getObjectData(foundationId);
 //                 if (foundationDetail && foundationDetail.content?.fields?.bounty_table_keys) {
 //                     // Fetch details of each bounty_table_key within the foundation
 //                     const bountyTableKeys = foundationDetail.content.fields.bounty_table_keys;
 //                     const bountyDetailsPromises = bountyTableKeys.map(async (bountyKey: string) => {
 //                         // Fetch the object details for each bounty_key
-//                         return await getObject(bountyKey);
+//                         return await getObjectData(bountyKey);
 //                     });
 //                     const bountyDetails = await Promise.all(bountyDetailsPromises);
 //                     foundationDetail.content.fields.bounty_details = bountyDetails;
@@ -367,7 +361,7 @@ app.get('/bounties-full', asyncHandler(async (req: Request, res: Response) => {
 
 //             // Fetch object details for all bounty keys
 //             const allBountyDetailsPromises = allBountyDetails.map(async (bountyDetail: any) => {
-//                 return await getObject(bountyDetail.objectId);
+//                 return await getObjectData(bountyDetail.objectId);
 //             });
 //             const allBountyDetailsFetched = await Promise.all(allBountyDetailsPromises);
 

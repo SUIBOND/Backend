@@ -5,10 +5,12 @@ import {
 } from "@mysten/sui/client";
 import axios from 'axios';
 import config from "./config";
+import { parseObjectData } from "./parse";
+import { ObjectData } from "./types";
 
 export const client = new SuiClient({ url: config.testnet_endpoint });
 
-export const getObject = async (objectId: string): Promise<any> => {
+export const getObjectData = async (objectId: string): Promise<ObjectData | undefined> => {
     if (!objectId) {
         return;
     }
@@ -22,19 +24,22 @@ export const getObject = async (objectId: string): Promise<any> => {
         };
         const res = await client.getObject(input);
 
-        return res.data;
+        return res ? parseObjectData(res.data) : undefined;
     } catch (e) {
         console.log("getObject failed: ", e, "objectId: ", objectId);
     }
 };
 
-export const multiGetObjects = async (objectIds: string[]): Promise<any> => {
+export const getMultipleObjectsData = async (objectIds: string[]): Promise<ObjectData[] | undefined> => {
     try {
         const input: MultiGetObjectsParams = {
             ids: objectIds,
+            options: {
+                showContent: true,
+            }
         };
         const res = await client.multiGetObjects(input);
-        return res.map((r) => r.data);
+        return res ? res.map((res) => parseObjectData(res.data)) : undefined;
     } catch (e) {
         console.error("batchGetObjects failed", e);
     }
