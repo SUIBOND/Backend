@@ -20,6 +20,7 @@ export const parseFoundationData = (data: any): Foundation => {
 export const parseFoundationCap = (data: any): FoundationCap => {
     const fields = data.content?.fields;
     return {
+        foundation_cap: fields.foundation_cap,
         id: fields.id.id,
         owner: fields.owner,
         name: fields.name,
@@ -43,7 +44,6 @@ export const parseDeveloperCap = (data: any): DeveloperCap => {
     };
 };
 
-// 필요 없으면 제거 예정 ------------------------------------------
 // parseBountyForEndpoint 함수 추가
 export const parseBountyForEndpoint = (bountyData: any): Bounty => {
     return {
@@ -104,29 +104,36 @@ const parseCoinForEndpoint = (coin: any): Coin<'SUI'> => {
         currency: 'SUI',
     };
 };
-// 필요 없으면 제거 예정 ------------------------------------------
 
 
+export const parseProposal = (proposalData: any): Proposal => {
+    const content = proposalData?.content || {};
 
-// 개별 Proposal ID 데이터를 파싱하는 헬퍼 함수
-const parseProposal = (proposalId: string): Proposal => {
     return {
-        id: proposalId,
-        proposer: "",
-        developer_cap: "",
-        foundation: "",
-        bounty: "",
-        title: "",
-        project: { id: "", name: "", description: "", milestondes: [] },
-        state: 0,
-        submitted_epochs: 0,
-        confirmed_epochs: 0,
-        completed_epochs: 0,
-        current_deadline_epochs: 0,
-        grant_size: 0,
-        stake: { amount: 0, currency: "SUI" },
+        id: content.id || "",  // 기본값 대신 실제 값을 가져옵니다.
+        proposer: content.proposer || "",
+        developer_cap: content.developer_cap || "",
+        foundation: content.foundation || "",
+        bounty: content.bounty || "",
+        title: content.title || "",
+        project: content.project ? parseProject(content.project) : null,  // null일 때만 기본값 사용
+        state: content.state || 0,
+        submitted_epochs: content.submitted_epochs || 0,
+        confirmed_epochs: content.confirmed_epochs || 0,
+        completed_epochs: content.completed_epochs || 0,
+        current_deadline_epochs: content.current_deadline_epochs || 0,
+        grant_size: content.grant_size || 0,
+        stake: {
+            amount: content.stake?.amount || 0,
+            currency: content.stake?.currency || "SUI"  // 기본 통화 설정
+        }
     };
 };
+
+
+
+
+
 
 // parseBountyTable 함수 수정:
 const parseBountyTable = (bountyTable: any): Record<string, Bounty> => {
@@ -186,15 +193,18 @@ const parseProposals = (proposals: any): Proposal[] => {
     })) || [];
 };
 
-// Project 데이터를 파싱하는 함수
-const parseProject = (project: any): Project => {
+const parseProject = (projectData: any): Project => {
+    const fields = projectData || {};
+
     return {
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        milestondes: project.milestondes.map((milestone: any) => parseMilestone(milestone)),
+        id: fields.id || "unknown",
+        name: fields.name || "unknown",
+        description: fields.description || "unknown",
+        milestondes: (fields.milestondes || []).map((milestone: any) => parseMilestone(milestone)), // 'milestones' 대신 'milestondes' 사용
     };
 };
+
+
 
 // Milestone 데이터를 파싱하는 함수
 const parseMilestone = (milestone: any): Milestone => {

@@ -8,6 +8,7 @@ export interface Coin<T> {
 
 // Foundation data structure
 export interface FoundationCap {
+    foundation_cap: any | unknown;
     id: string;
     owner: string;
     name: string;
@@ -29,7 +30,7 @@ export interface DeveloperCap {
 export interface Foundation {
     id: string;
     owner: string;
-    foundation_cap: string;
+    foundation_cap?: FoundationCap;
     name: string;
     bounty_table: Record<string, Bounty>;
     bounty_table_keys: string[];
@@ -57,7 +58,7 @@ export interface Proposal {
     bounty: string;
 
     title: string;
-    project: Project;
+    project: Project | null;
 
     state: number;
     submitted_epochs: number;

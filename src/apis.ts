@@ -5,7 +5,8 @@ import cors from 'cors';
 
 
 import config from './config';
-import { parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData } from './parse';
+import { parseBounty, parseBountyForEndpoint, parseDeveloperCap, parseFoundationCap, parseFoundationData, parseProposal } from './parse';
+import { Foundation, FoundationCap } from './types';
 
 const app = express();
 const port = 3000;
@@ -16,8 +17,6 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-
 
 app.use(express.json()); // Parse JSON request body
 
@@ -212,16 +211,61 @@ app.get('/dev/proposals/:walletAddress', asyncHandler(async (req: Request, res: 
         // Retrieve detailed data using the ObjectId of the first DeveloperCap object
         const developerCapData = await getObject(developerCapObjects[0].data.objectId);
 
-        // Parse and return DeveloperCap data
-        const developerCap = parseDeveloperCap(developerCapData);
+        // Parse DeveloperCap data
+        let developerCap = parseDeveloperCap(developerCapData);
 
-        // Return DeveloperCap information
+        // Fetch detailed data for each unsubmitted proposal
+        const unsubmittedProposals = await Promise.all(
+            developerCap.unsubmitted_proposal.map(async (proposalId) => {
+                const proposalData = await getObject(proposalId.id); // Fetch proposal data
+                return parseProposal(proposalData); // Parse and return
+            })
+        );
+
+        // Replace unsubmitted_proposal with fetched data
+        developerCap = { ...developerCap, unsubmitted_proposal: unsubmittedProposals };
+
+        // Return parsed data
         res.json({ developerCap });
     } catch (error) {
         console.error("Error fetching DeveloperCap details:", error);
         res.status(500).json({ error: "Failed to retrieve DeveloperCap details" });
     }
 }));
+
+
+
+// With parse
+// app.get('/dev/proposals/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+//     const { walletAddress } = req.params;
+
+//     if (!walletAddress) {
+//         return res.status(400).json({ error: "Wallet address is required" });
+//     }
+
+//     try {
+//         // Retrieve DeveloperCap object from walletAddress
+//         const developerCapObjects = await getOwnedObjects(walletAddress, "developer_cap", "DeveloperCap");
+
+//         // Return 404 error if no DeveloperCap objects are found
+//         if (developerCapObjects.length === 0) {
+//             return res.status(404).json({ error: "No DeveloperCap found" });
+//         }
+
+//         // Retrieve detailed data using the ObjectId of the first DeveloperCap object
+//         const developerCapData = await getObject(developerCapObjects[0].data.objectId);
+
+//         // Parse and return DeveloperCap data
+//         const developerCap = parseDeveloperCap(developerCapData);
+
+//         // Return DeveloperCap information
+//         res.json({ developerCap });
+//     } catch (error) {
+//         console.error("Error fetching DeveloperCap details:", error);
+//         res.status(500).json({ error: "Failed to retrieve DeveloperCap details" });
+//     }
+// }));
+
 
 
 app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
@@ -286,25 +330,20 @@ app.get('/bounties-full', asyncHandler(async (req: Request, res: Response) => {
         const foundationDetailsPromises = foundationIds.map((foundationId: string) => getObject(foundationId));
         const foundationDetails = await Promise.all(foundationDetailsPromises);
 
-        // 각 foundation의 bounty_table_keys를 가져와 모든 bounty 객체를 포함하도록 설정
         const bountyTableDetailsPromises = foundationDetails.flatMap((foundation: any) => {
             return foundation?.content?.fields?.bounty_table_keys?.map((bountyKey: string) => getObject(bountyKey)) || [];
         });
 
         const bountyTableDetails = await Promise.all(bountyTableDetailsPromises);
 
-        // 모든 필드를 반환
-        const fullBountyDetails = bountyTableDetails.map((bounty: any) => ({
-            objectId: bounty.objectId,
-            ...bounty.content.fields // 모든 필드 포함
+        // Foundation 데이터를 그대로 반환
+        const foundations = foundationDetails.map((foundation: any) => ({
+            ...foundation.content?.fields,
+            bounties: bountyTableDetails // bounties는 이미 반환된 데이터를 사용
         }));
 
         res.status(200).json({
-            foundations: foundationDetails.map((foundation: any) => ({
-                objectId: foundation.objectId,
-                ...foundation.content.fields, // 모든 필드 포함
-                bounties: fullBountyDetails
-            }))
+            foundations
         });
 
     } catch (error) {
