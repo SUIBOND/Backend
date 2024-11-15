@@ -2,6 +2,10 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { getMultipleObjectsData, getObjectData, getOwnedObjects } from './object'; // getOwnedObjects import
 import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import axios from 'axios';
 
 
 import config from './config';
@@ -10,15 +14,15 @@ import { ObjectData, Bounty } from './types';
 
 const app = express();
 const port = 4000;
-const packageId = config.package_id;
+const { publisher_url, aggregator_url } = config;
+
+
 
 app.use(cors({
     origin: ['https://suibond.vercel.app', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-
 
 app.use(express.json()); // Parse JSON request body
 
@@ -75,7 +79,7 @@ app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // 1. Retrieve object using platformId
-    const platfomObjectData = await getObjectData(platformId).then( data => data ? parseSuibondPlatfom(data) : null);
+    const platfomObjectData = await getObjectData(platformId).then(data => data ? parseSuibondPlatfom(data) : null);
     if (!platfomObjectData) {
         return res.status(404).send("Suibond Platform Object not found");
     }
@@ -100,7 +104,7 @@ app.get('/foundation/:foundationId', asyncHandler(async (req: Request, res: Resp
         return;
     }
 
-    const foundationData = await getObjectData(foundationId).then( data => data ? parseFoundation(data) : null);
+    const foundationData = await getObjectData(foundationId).then(data => data ? parseFoundation(data) : null);
     if (!foundationData) {
         return res.status(404).send("Foundation Object not found");
     }
@@ -116,7 +120,7 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // 1. Retrieve object using platformId
-    const platfomObjectData = await getObjectData(platformId).then( data => data ? parseSuibondPlatfom(data) : null);
+    const platfomObjectData = await getObjectData(platformId).then(data => data ? parseSuibondPlatfom(data) : null);
     if (!platfomObjectData) {
         return res.status(404).send("Suibond Platform Object not found");
     }
@@ -131,7 +135,7 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
     const foundationDataArray = await getMultipleObjectsData(platfomObjectData.foundation_ids)
         .then(data => data ? data.map(async item => await parseFoundation(item)) : [])
     const foundationArray = await Promise.all(foundationDataArray)
-    foundationArray.forEach(item => {bounties = bounties.concat(item.bounties)})
+    foundationArray.forEach(item => { bounties = bounties.concat(item.bounties) })
 
     res.json(bounties)
 }))
@@ -147,7 +151,104 @@ app.get('/bounty/:bountyId', asyncHandler(async (req: Request, res: Response) =>
 }))
 
 app.get('/proposals/:devWalletAddress', asyncHandler(async (req: Request, res: Response) => {
-}))
+    const devWalletAddress = req.params.devWalletAddress;
+
+    if (!devWalletAddress) {
+        res.status(400).json({ error: "Wallet address is required" });
+        return;
+    }
+
+    try {
+        // Retrieve FoundationCap and DeveloperCap objects respectively
+        const developerCapObjects = await getOwnedObjects(devWalletAddress, "developer_cap", "DeveloperCap");
+
+        let result: any = null;
+
+        if (developerCapObjects.length > 0) {
+            const developerCapData = await getObjectData(developerCapObjects[0].data.objectId);
+            const developerCap = await parseDeveloperCap(developerCapData!);
+            result = { developerCap };
+        }
+
+        if (!result) {
+            res.status(404).json({ error: "No DeveloperCap or FoundationCap found." });
+        } else {
+            res.json(result);
+        }
+    } catch (error: any) {
+        console.error("Error fetching owned objects:", error);
+        res.status(500).json({ error: "Failed to retrieve owned objects" });
+    }
+}));
+
+
+// Multer 설정: 메모리 저장소 사용
+const upload = multer({
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['application/pdf'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF files are allowed.'));
+        }
+    },
+});
+
+// 파일 업로드 API (디스크에 저장 없이 Walrus로 바로 업로드)
+app.post(
+    '/upload',
+    upload.single('file'),
+    asyncHandler(async (req: Request, res: Response) => {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        try {
+            // Walrus API로 파일 스트림 업로드
+            const response = await axios.put(
+                `${publisher_url}/v1/store?epochs=5`,
+                req.file.buffer, // Multer 메모리 버퍼 사용
+                {
+                    headers: {
+                        'Content-Type': req.file.mimetype,
+                        'Content-Length': req.file.size.toString(),
+                    },
+                }
+            );
+
+            return res.status(200).json({
+                message: 'File uploaded to Walrus successfully',
+                walrusResponse: response.data,
+            });
+        } catch (error: any) {
+            console.error(error.message);
+            return res.status(500).json({ error: 'File upload failed' });
+        }
+    })
+);
+
+// Blob 다운로드 API
+app.get(
+    '/download/:blobId',
+    asyncHandler(async (req: Request, res: Response) => {
+        const { blobId } = req.params;
+
+        try {
+            // Walrus API로 Blob 데이터 가져오기
+            const response = await axios.get(`${aggregator_url}/v1/${blobId}`, {
+                responseType: 'stream',
+            });
+
+            // 적절한 파일 이름 설정 및 스트림으로 응답 전송
+            res.setHeader('Content-Disposition', `attachment; filename=${blobId}`);
+            response.data.pipe(res);
+        } catch (error: any) {
+            console.error(error.message);
+            return res.status(500).json({ error: 'Blob download failed' });
+        }
+    })
+);
 
 
 
@@ -155,6 +256,11 @@ app.get('/proposals/:devWalletAddress', asyncHandler(async (req: Request, res: R
 
 
 
+// -----------------------------------------------------------------------------------------------
+
+
+
+// getOwnedObject -> devCapObject 중에서 0번째꺼의 Object를 다시 getObject로 가져온 다음
 
 
 
