@@ -6,7 +6,7 @@ import cors from 'cors';
 
 import config from './config';
 import { parseObjectData, parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundation, parseSuibondPlatfom } from './parse';
-import { ObjectData } from './types';
+import { ObjectData, Bounty } from './types';
 
 const app = express();
 const port = 4000;
@@ -110,6 +110,31 @@ app.get('/foundation/:foundationId', asyncHandler(async (req: Request, res: Resp
 }))
 
 app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
+    const platformId = config.platform_obj_id;
+
+    if (!platformId) {
+        return res.status(400).send("Suibond Platform Object ID is required");
+    }
+
+    // 1. Retrieve object using platformId
+    const platfomObjectData = await getObjectData(platformId).then( data => data ? parseSuibondPlatfom(data) : null);
+    if (!platfomObjectData) {
+        return res.status(404).send("Suibond Platform Object not found");
+    }
+
+    // 2. Extract foundation_ids from the object
+    if (platfomObjectData.foundation_ids.length === 0) {
+        return res.status(404).send("No foundation IDs found in the object");
+    }
+
+    // 3. Retrieve and parse objects for each foundationId
+    let bounties: Bounty[] = [];
+    const foundationDataArray = await getMultipleObjectsData(platfomObjectData.foundation_ids)
+        .then(data => data ? data.map(async item => await parseFoundation(item)) : [])
+    const foundationArray = await Promise.all(foundationDataArray)
+    foundationArray.forEach(item => {bounties = bounties.concat(item.bounties)})
+
+    res.json(bounties)
 }))
 
 app.get('/bounty/:bountyId', asyncHandler(async (req: Request, res: Response) => {
