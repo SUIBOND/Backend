@@ -45,15 +45,15 @@ app.get('/identification/:walletAddress', asyncHandler(async (req: Request, res:
         if (foundationCapObjects.length > 0) {
             const foundationCapData = await getObjectData(foundationCapObjects[0].data.objectId);
             const foundationCap = parseFoundationCap(foundationCapData!);
-            console.log(foundationCap);
+            // console.log(foundationCap);
             result = { foundationCap };
         }
 
         if (developerCapObjects.length > 0) {
             const developerCapData = await getObjectData(developerCapObjects[0].data.objectId);
-            const developerCap = parseDeveloperCap(developerCapData!);
-            console.log(developerCap);
-            result = { ...result, developerCap };
+            const developerCap = await parseDeveloperCap(developerCapData!);
+            // console.log(developerCap);
+            result = { developerCap };
         }
 
         if (!result) {

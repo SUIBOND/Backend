@@ -29,18 +29,25 @@ export const parseFoundationCap = (data: ObjectData): FoundationCap => {
     };
 };
 
-export const parseDeveloperCap = (data: ObjectData): DeveloperCap => {
-    const fields = data.content?.fields;
+export const parseDeveloperCap = async (data: ObjectData): Promise<DeveloperCap> => {
+    const unsubmitted_proposal = await getMultipleObjectsData(data.content.fields.unsubmitted_proposal)
+        .then(data => data ? data.map(item => parseProposal(item)) : [])
+    const submitted_proposal = await getMultipleObjectsData(data.content.fields.submitted_proposal)
+        .then(data => data ? data.map(item => parseProposal(item)) : [])
+    const rejected_or_expired_proposal = await getMultipleObjectsData(data.content.fields.rejected_or_expired_proposal)
+        .then(data => data ? data.map(item => parseProposal(item)) : [])
+    const completed_proposal = await getMultipleObjectsData(data.content.fields.completed_proposal)
+        .then(data => data && data.length > 0 ? data.map(item => parseProposal(item)) : [])
+
     return {
-        id: fields.id.id,
-        owner: fields.owner,
-        name: fields.name,
-        url: fields.url,
-        // unsubmitted_proposal: fields.unsubmitted_proposal.map((proposalId: string) => parseProposal(proposalId)),
-        unsubmitted_proposal: fields.unsubmitted_proposal,
-        submitted_proposal: fields.submitted_proposal,
-        rejected_or_expired_proposal: fields.rejected_or_expired_proposal,
-        completed_proposal: fields.completed_proposal,
+        id: data.objectId,
+        owner: data.content.fields.owner,
+        name: data.content.fields.name,
+        url: data.content.fields.url,
+        unsubmitted_proposal: unsubmitted_proposal,
+        submitted_proposal: submitted_proposal,
+        rejected_or_expired_proposal: rejected_or_expired_proposal,
+        completed_proposal: completed_proposal
     };
 };
 

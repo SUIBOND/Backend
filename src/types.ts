@@ -39,9 +39,9 @@ export interface DeveloperCap {
     name: string;
     url: string;
     unsubmitted_proposal: Proposal[];
-    submitted_proposal: string[];
-    rejected_or_expired_proposal: string[];
-    completed_proposal: string[];
+    submitted_proposal: Proposal[];
+    rejected_or_expired_proposal: Proposal[];
+    completed_proposal: Proposal[];
 }
 
 export interface Foundation {
