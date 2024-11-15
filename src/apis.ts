@@ -108,7 +108,6 @@ app.get('/foundation/:foundationId', asyncHandler(async (req: Request, res: Resp
     if (!foundationData) {
         return res.status(404).send("Foundation Object not found");
     }
-    console.log(foundationData)
 
     res.json(foundationData);
 }))
@@ -142,6 +141,13 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 app.get('/bounty/:bountyId', asyncHandler(async (req: Request, res: Response) => {
+    const bountyId = req.params.bountyId;
+    const bountyObjectData = await getObjectData(bountyId).then( data => data ? parseBounty(data) : null);
+    if (!bountyObjectData) {
+        return res.status(404).send("Bounty Object not found");
+    }
+
+    console.log(bountyObjectData)
 }))
 
 app.get('/proposals/:devWalletAddress', asyncHandler(async (req: Request, res: Response) => {
