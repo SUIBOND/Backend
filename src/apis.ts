@@ -75,7 +75,7 @@ app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // 1. Retrieve object using platformId
-    const platfomObjectData = await getObjectData(platformId).then( data => data ? parseSuibondPlatfom(data) : null);
+    const platfomObjectData = await getObjectData(platformId).then(data => data ? parseSuibondPlatfom(data) : null);
     if (!platfomObjectData) {
         return res.status(404).send("Suibond Platform Object not found");
     }
@@ -100,7 +100,7 @@ app.get('/foundation/:foundationId', asyncHandler(async (req: Request, res: Resp
         return;
     }
 
-    const foundationData = await getObjectData(foundationId).then( data => data ? parseFoundation(data) : null);
+    const foundationData = await getObjectData(foundationId).then(data => data ? parseFoundation(data) : null);
     if (!foundationData) {
         return res.status(404).send("Foundation Object not found");
     }
@@ -117,7 +117,7 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // 1. Retrieve object using platformId
-    const platfomObjectData = await getObjectData(platformId).then( data => data ? parseSuibondPlatfom(data) : null);
+    const platfomObjectData = await getObjectData(platformId).then(data => data ? parseSuibondPlatfom(data) : null);
     if (!platfomObjectData) {
         return res.status(404).send("Suibond Platform Object not found");
     }
@@ -132,7 +132,7 @@ app.get('/bounties', asyncHandler(async (req: Request, res: Response) => {
     const foundationDataArray = await getMultipleObjectsData(platfomObjectData.foundation_ids)
         .then(data => data ? data.map(async item => await parseFoundation(item)) : [])
     const foundationArray = await Promise.all(foundationDataArray)
-    foundationArray.forEach(item => {bounties = bounties.concat(item.bounties)})
+    foundationArray.forEach(item => { bounties = bounties.concat(item.bounties) })
 
     res.json(bounties)
 }))
@@ -141,14 +141,42 @@ app.get('/bounty/:bountyId', asyncHandler(async (req: Request, res: Response) =>
 }))
 
 app.get('/proposals/:devWalletAddress', asyncHandler(async (req: Request, res: Response) => {
-}))
+    const devWalletAddress = req.params.devWalletAddress;
+
+    if (!devWalletAddress) {
+        res.status(400).json({ error: "Wallet address is required" });
+        return;
+    }
+
+    try {
+        // Retrieve FoundationCap and DeveloperCap objects respectively
+        const developerCapObjects = await getOwnedObjects(devWalletAddress, "developer_cap", "DeveloperCap");
+
+        let result: any = null;
+
+        if (developerCapObjects.length > 0) {
+            const developerCapData = await getObjectData(developerCapObjects[0].data.objectId);
+            const developerCap = await parseDeveloperCap(developerCapData!);
+            result = { developerCap };
+        }
+
+        if (!result) {
+            res.status(404).json({ error: "No DeveloperCap or FoundationCap found" });
+        } else {
+            res.json(result);
+        }
+    } catch (error: any) {
+        console.error("Error fetching owned objects:", error);
+        res.status(500).json({ error: "Failed to retrieve owned objects" });
+    }
+}));
 
 
 
 
 
 
-
+// getOwnedObject -> devCapObject 중에서 0번째꺼의 Object를 다시 getObject로 가져온 다음
 
 
 
