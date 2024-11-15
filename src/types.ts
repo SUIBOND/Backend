@@ -6,6 +6,24 @@ export interface Coin<T> {
     currency: T;
 }
 
+export interface ObjectData {
+    objectId: string;
+    version: string;
+    digest: string;
+    content: {
+        dataType: string;
+        type: string;
+        hasPublicTransfer: boolean;
+        fields: any;
+    };
+}
+
+export interface SuibondPlatform {
+    id: string;
+    owner: string;
+    foundation_ids: string[];
+}
+
 // Foundation data structure
 export interface FoundationCap {
     id: string;

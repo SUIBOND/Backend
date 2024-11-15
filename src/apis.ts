@@ -5,7 +5,7 @@ import cors from 'cors';
 
 
 import config from './config';
-import { parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData } from './parse';
+import { parseObjectData, parseBounty, parseDeveloperCap, parseFoundationCap, parseFoundationData } from './parse';
 
 const app = express();
 const port = 4000;
@@ -77,26 +77,32 @@ app.get('/foundations', asyncHandler(async (req: Request, res: Response) => {
 
     // 1. Retrieve object using platformId
     const result = await getObject(platformId);
+    console.log("result",result)
+    console.log("objectId",result?.objectId)
+    console.log("digest",result?.digest)
+    console.log("version",result?.version)
+    console.log("content",result?.content)
     if (!result) {
         return res.status(404).send("Object not found");
     }
 
-    // 2. Extract foundation_ids from the object
+    // // 2. Extract foundation_ids from the object
     const foundationIds = result.content?.fields?.foundation_ids;
     if (!foundationIds || !Array.isArray(foundationIds) || foundationIds.length === 0) {
         return res.status(404).send("No foundation IDs found in the object");
     }
 
-    // 3. Retrieve and parse objects for each foundationId
-    const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
-        const foundationData = await getObject(foundationId); // Retrieve foundation data
-        return parseFoundationData(foundationData); // Parse the retrieved data
-    });
+    // // 3. Retrieve and parse objects for each foundationId
+    // const foundationDetailsPromises = foundationIds.map(async (foundationId: string) => {
+    //     const foundationData = await getObject(foundationId); // Retrieve foundation data
+    //     return parseFoundationData(foundationData); // Parse the retrieved data
+    // });
 
-    // 4. Return the result after parsing all foundation data
-    const foundation = await Promise.all(foundationDetailsPromises);
+    // // 4. Return the result after parsing all foundation data
+    // const foundation = await Promise.all(foundationDetailsPromises);
 
-    res.json({ foundation }); // Return parsed data in the response
+    // res.json({ foundation }); // Return parsed data in the response
+    res.json({"hello": "world"})
 }));
 
 // Utility to filter specified fields from an object
@@ -128,14 +134,14 @@ app.get('/bounties/:foundationId', asyncHandler(async (req: Request, res: Respon
     const bountyDetailsPromises = foundation.bounty_table_keys.map(async (bountyKey: string) => await getObject(bountyKey));
     const bountyDetails = await Promise.all(bountyDetailsPromises);
 
-    const parsedBountyDetails = bountyDetails.map(bountyDetail =>
-        parseBounty(bountyDetail.content.fields, bountyDetail.content.fields.id)
-    );
+    // const parsedBountyDetails = bountyDetails.map(bountyDetail =>
+    //     parseBounty(bountyDetail.content.fields, bountyDetail.content.fields.id)
+    // );
 
-    res.json({
-        foundationDetails: foundation,
-        bountyDetails: parsedBountyDetails
-    });
+    // res.json({
+    //     foundationDetails: foundation,
+    //     bountyDetails: parsedBountyDetails
+    // });
 }));
 
 app.get('/bountiesss', asyncHandler(async (req: Request, res: Response) => {

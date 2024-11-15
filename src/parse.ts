@@ -1,8 +1,30 @@
 // parse.ts
 
-import { Foundation, Bounty, Proposal, Coin, Project, Milestone, DeveloperCap, FoundationCap } from './types';
+import {ObjectData, Foundation, Bounty, Proposal, Coin, Project, Milestone, DeveloperCap, FoundationCap, SuibondPlatform } from './types';
 
-// 기존 parseFoundationData 함수에서 bounty_table, bounty_table_keys 부분을 수정:
+export const parseObjectData = (data: any): ObjectData => {
+    const objectData: ObjectData = {
+        objectId: data.objectId || '',
+        version: data.version || '',
+        digest: data.digest || '',
+        content: {
+            dataType: data.content.dataType || '',
+            type: data.content.type || '',
+            hasPublicTransfer: data.content.hasPublicTransfer || false,
+            fields: data.content.fields || {},
+        },
+      };
+    return objectData
+};
+
+export const parseSuibondPlatfom = (data: any): SuibondPlatform => {
+    const foundation = data.content?.fields;
+    return {
+        id: data.objectId,
+        owner: "",
+        foundation_ids: [""]
+    };
+};
 export const parseFoundationData = (data: any): Foundation => {
     const foundation = data.content?.fields;
     return {

@@ -5,10 +5,12 @@ import {
 } from "@mysten/sui/client";
 import axios from 'axios';
 import config from "./config";
+import { parseObjectData } from "./parse";
+import { ObjectData } from "./types";
 
 export const client = new SuiClient({ url: config.testnet_endpoint });
 
-export const getObject = async (objectId: string): Promise<any> => {
+export const getObject = async (objectId: string): Promise<ObjectData | undefined> => {
     if (!objectId) {
         return;
     }
@@ -22,7 +24,7 @@ export const getObject = async (objectId: string): Promise<any> => {
         };
         const res = await client.getObject(input);
 
-        return res.data;
+        return parseObjectData(res.data);
     } catch (e) {
         console.log("getObject failed: ", e, "objectId: ", objectId);
     }
