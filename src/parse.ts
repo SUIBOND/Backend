@@ -76,9 +76,9 @@ export const parseFoundation = async (data: ObjectData): Promise<Foundation> => 
 export const parseBounty = async (data: ObjectData): Promise<Bounty> => {
     const unconfirmed_proposals = await getMultipleObjectsData(data.content.fields.proposals.fields.unconfirmed_proposal_ids)
         .then(data => data ? data.map(item => parseProposal(item)) : []);
-    const processing_proposals = await getMultipleObjectsData(data.content.fields.proposals.fields.unconfirmed_proposal_ids)
+    const processing_proposals = await getMultipleObjectsData(data.content.fields.proposals.fields.processing_proposal_ids)
         .then(data => data ? data.map(item => parseProposal(item)) : []);
-    const completed_proposals = await getMultipleObjectsData(data.content.fields.proposals.fields.unconfirmed_proposal_ids)
+    const completed_proposals = await getMultipleObjectsData(data.content.fields.proposals.fields.completed_proposal_ids)
         .then(data => data ? data.map(item => parseProposal(item)) : []);
     return {
         id: data.objectId,
